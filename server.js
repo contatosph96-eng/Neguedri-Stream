@@ -204,7 +204,7 @@ app.post('/api/progresso', (req, res) => {
   res.json({ sucesso: true, progresso: progress[userId] });
 });
 
-// Proxy IPTV com Filtro Universal Reforçado para Séries e Filmes
+// Proxy IPTV com Filtro Universal Reforçado e Varredura Profunda
 app.get('/api/iptv-proxy', async (req, res) => {
   const { userId, action, category_id, series_id } = req.query;
   const usuarios = lerUsuarios();
@@ -244,20 +244,19 @@ app.get('/api/iptv-proxy', async (req, res) => {
       'a lenda do demônio', 'a size classmate', 'abandon 100 nuki', 
       'accelerando date', 'ai wa kagi no kaz', 'albeya the anim', 
       'aikagi the animat', 'aisai nikki', 'ajin ga osuki man', 
-      'Shinsei Kourin Dacryon Luna',
+      'shinsei kourin', 'dacryon', 'luna',
       'ajisal no chiru kor', 'akane wa tumari', 'akebi no hane maho', 
       'aki sora', 'aku no onna kanbu', 'allargando the an', 
       'amanane', 'ane koi suki kirai', 'ane kyun joshi ga', 
       'ane wa yanmama', 'anette san e lilian', 'aniki no yome san', 
       'aniyome wa jipperi', 'ano danchi no to', 'aoharu snatch', 
-      'arbeit shiyou let\'s', 'asgaldh the disto', 'bikyaku seiko koi', 
+      'arbeit shiyou', 'asgaldh the disto', 'bikyaku seiko koi', 
       'bishoku ke no rule', 'bitch na izanai-san', 'boku dake no hen', 
       'boku ni harem se', 'boku to sensei to', 'bust to bust chik', 
       'buta hime-sama', 'chicchana onaka', 'chisana taubomi', 
       'class de otoko wa', 'colosseum no sen', 'cosplay', 
       'gomu o tsuketeru', 'i can', 'ikuusei', 'lenda do overfiend', 
-      'mahou toukei lyris', 'oni chichi harem', 'shinsui kourin de', 
-      'yumemiru otome','Aibeya The Animation',
+      'mahou toukei lyris', 'oni chichi harem', 'yumemiru otome',
       'aibeya the animation', 'ajin ga osuki nan desu ne', 'ajisai no chiru koro ni',
       'akane wa tsumare somerareru', 'akebi no hana maho', 'amanee', 
       'aniyome wa ijippari', 'ano danchi no tsuma tachi wa the animation', 
@@ -268,17 +267,30 @@ app.get('/api/iptv-proxy', async (req, res) => {
 
     if (Array.isArray(data)) {
       data = data.filter(item => {
-        // Junta absolutamente todas as propriedades de texto possíveis que a API de séries/filmes possa enviar
-        const textoCompleto = [
+        // Concatena todas as propriedades possíveis do JSON de forma profunda
+        const propriedadesItem = [
           item.name,
           item.title,
           item.series_name,
           item.category_name,
           item.plot,
-          item.cast
-        ].filter(Boolean).join(' ').toLowerCase();
+          item.cast,
+          item.cover,
+          item.num
+        ];
+
+        const textoCompleto = propriedadesItem
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
         
-        const contemTermo = termosBloqueados.some(termo => textoCompleto.includes(termo));
+        const contemTermo = termosBloqueados.some(termo => {
+          const termoNormalizado = termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          return textoCompleto.includes(termoNormalizado);
+        });
+
         return !contemTermo;
       });
     }
