@@ -204,7 +204,7 @@ app.post('/api/progresso', (req, res) => {
   res.json({ sucesso: true, progresso: progress[userId] });
 });
 
-// Proxy IPTV com Timeout, Tratamento de Erro e Filtro Antiaquecimento Avançado
+// Proxy IPTV com Filtro Universal Reforçado para Séries e Filmes
 app.get('/api/iptv-proxy', async (req, res) => {
   const { userId, action, category_id, series_id } = req.query;
   const usuarios = lerUsuarios();
@@ -240,18 +240,45 @@ app.get('/api/iptv-proxy', async (req, res) => {
       'sexo', 'private', 'brazzers', 'privates', 'playboy', 'venus', 
       'hot', 'lindoas', 'delicias', 'coroa', 'amador', 'porn',
       'bella da semana', 'espermagedom', 'sensual', 'fetiche', 'campeao de pica',
-      'slumber party', 'shenannigans', 'shenanigans'
+      'slumber party', 'shenannigans', 'shenanigans',
+      'a lenda do demônio', 'a size classmate', 'abandon 100 nuki', 
+      'accelerando date', 'ai wa kagi no kaz', 'albeya the anim', 
+      'aikagi the animat', 'aisai nikki', 'ajin ga osuki man', 
+      'Shinsei Kourin Dacryon Luna',
+      'ajisal no chiru kor', 'akane wa tumari', 'akebi no hane maho', 
+      'aki sora', 'aku no onna kanbu', 'allargando the an', 
+      'amanane', 'ane koi suki kirai', 'ane kyun joshi ga', 
+      'ane wa yanmama', 'anette san e lilian', 'aniki no yome san', 
+      'aniyome wa jipperi', 'ano danchi no to', 'aoharu snatch', 
+      'arbeit shiyou let\'s', 'asgaldh the disto', 'bikyaku seiko koi', 
+      'bishoku ke no rule', 'bitch na izanai-san', 'boku dake no hen', 
+      'boku ni harem se', 'boku to sensei to', 'bust to bust chik', 
+      'buta hime-sama', 'chicchana onaka', 'chisana taubomi', 
+      'class de otoko wa', 'colosseum no sen', 'cosplay', 
+      'gomu o tsuketeru', 'i can', 'ikuusei', 'lenda do overfiend', 
+      'mahou toukei lyris', 'oni chichi harem', 'shinsui kourin de', 
+      'yumemiru otome','Aibeya The Animation',
+      'aibeya the animation', 'ajin ga osuki nan desu ne', 'ajisai no chiru koro ni',
+      'akane wa tsumare somerareru', 'akebi no hana maho', 'amanee', 
+      'aniyome wa ijippari', 'ano danchi no tsuma tachi wa the animation', 
+      'arbeit shiyou lets arbeit', 'bikyaku seido kaichou ai', 'bitch na inane-sama', 
+      'bust to bust chichi wa chichi ni', 'chiisana tsubomi no sono oku ni', 
+      'gomu o tsukete to iimashita yo ne', 'ikusei', 'mahou touki lyristia'
     ];
 
     if (Array.isArray(data)) {
       data = data.filter(item => {
-        const nomeItem = String(item.name || item.title || '').toLowerCase();
-        const nomeCategoria = String(item.category_name || '').toLowerCase();
+        // Junta absolutamente todas as propriedades de texto possíveis que a API de séries/filmes possa enviar
+        const textoCompleto = [
+          item.name,
+          item.title,
+          item.series_name,
+          item.category_name,
+          item.plot,
+          item.cast
+        ].filter(Boolean).join(' ').toLowerCase();
         
-        const contemTermo = termosBloqueados.some(termo => 
-          nomeItem.includes(termo) || nomeCategoria.includes(termo)
-        );
-
+        const contemTermo = termosBloqueados.some(termo => textoCompleto.includes(termo));
         return !contemTermo;
       });
     }
