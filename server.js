@@ -172,7 +172,6 @@ app.post('/api/progresso', (req, res) => {
     const existing = progress[userId].find(saved => chaveProgresso(saved) === key);
     const updatedAt = Number(item.updatedAt) || Date.now();
 
-    // Ignora gravações periódicas que tenham chegado depois de uma posição mais recente.
     if (!existing || Number(existing.updatedAt || 0) <= updatedAt) {
       const currentTime = Number(item.currentTime);
       const duration = Number(item.duration);
@@ -205,7 +204,7 @@ app.post('/api/progresso', (req, res) => {
   res.json({ sucesso: true, progresso: progress[userId] });
 });
 
-// Proxy IPTV com Timeout e Tratamento de Erro Robusto
+// Proxy IPTV com Timeout, Tratamento de Erro e Filtro Antiaquecimento Avançado
 app.get('/api/iptv-proxy', async (req, res) => {
   const { userId, action, category_id, series_id } = req.query;
   const usuarios = lerUsuarios();
@@ -225,7 +224,7 @@ app.get('/api/iptv-proxy', async (req, res) => {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch(remoteUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -234,7 +233,29 @@ app.get('/api/iptv-proxy', async (req, res) => {
       return res.status(response.status).json({ erro: `Servidor remoto retornou erro ${response.status}` });
     }
     
-    const data = await response.json();
+    let data = await response.json();
+
+    const termosBloqueados = [
+      'adulto', 'adult', 'xxx', '+18', '18+', 'erotico', 'erótico', 
+      'sexo', 'private', 'brazzers', 'privates', 'playboy', 'venus', 
+      'hot', 'lindoas', 'delicias', 'coroa', 'amador', 'porn',
+      'bella da semana', 'espermagedom', 'sensual', 'fetiche', 'campeao de pica',
+      'slumber party', 'shenannigans', 'shenanigans'
+    ];
+
+    if (Array.isArray(data)) {
+      data = data.filter(item => {
+        const nomeItem = String(item.name || item.title || '').toLowerCase();
+        const nomeCategoria = String(item.category_name || '').toLowerCase();
+        
+        const contemTermo = termosBloqueados.some(termo => 
+          nomeItem.includes(termo) || nomeCategoria.includes(termo)
+        );
+
+        return !contemTermo;
+      });
+    }
+
     res.json({
       sucesso: true,
       server: { baseUrl, usuario: perfil.usuario, senha: perfil.senha },
