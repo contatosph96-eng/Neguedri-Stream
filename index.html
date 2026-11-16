@@ -194,4 +194,968 @@
       .sidebar { width: 286px; flex-basis: 286px; }
       .categories-list { width: 285px; flex-basis: 285px; }
       .content-grid { grid-template-columns: repeat(auto-fill, minmax(205px, 1fr)); gap: 22px; }
-      .card
+      .card img { height: clamp(210px, 18vw, 330px); }
+      .card-title { font-size: 16px; }
+      .top-bar { min-height: 86px; padding-inline: 32px; }
+      #sectionTitle { font-size: 23px !important; }
+    }
+    @media (max-width: 1000px) {
+      .sidebar { width: 220px; flex-basis: 220px; }
+      .categories-list { width: 205px; flex-basis: 205px; }
+      .content-grid-wrapper { padding: 18px; }
+      .content-grid { grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 14px; }
+      .top-bar { gap: 12px; padding-inline: 16px; }
+      .toolbar-actions { gap: 7px; }
+      .profile-select { min-width: 100px; max-width: 140px; }
+      .search-bar { width: min(26vw, 260px); }
+    }
+    @media (min-width: 701px) and (max-width: 900px) {
+      .top-bar { flex-wrap: wrap; row-gap: 8px; }
+      .topbar-heading { flex: 1 1 100%; }
+      .toolbar-actions { display: grid; width: 100%; grid-template-columns: minmax(100px, 1fr) auto minmax(140px, 2fr); }
+      .profile-select { max-width: none; }
+      .search-bar { width: auto; min-width: 0; }
+    }
+    @media (max-width: 700px) {
+      body { display: block; height: 100vh; height: 100dvh; overflow: hidden; }
+      .sidebar { position: fixed; z-index: 30; inset: auto 0 0; display: flex; width: 100%; height: calc(68px + var(--safe-bottom)); flex-direction: row; flex-basis: auto; padding: 0 4px var(--safe-bottom); border: 0; border-top: 1px solid #30313f; background: #15161df5; backdrop-filter: blur(16px); }
+      .sidebar-header { display: none; }
+      .menu { width: 100%; min-width: 0; flex-direction: row; align-items: stretch; justify-content: space-around; gap: 2px; overflow-x: auto; padding: 5px 2px 4px; }
+      .menu li { min-width: 0; flex: 1 1 0; }
+      .menu-item { display: flex; height: 100%; min-height: 56px; flex-direction: column; justify-content: center; gap: 2px; padding: 5px 1px; border: 0; border-top: 3px solid transparent; border-radius: 9px; font-size: 10px; }
+      .menu-item:hover, .menu-item.active { border-top-color: var(--accent); border-left-color: transparent; background: #252630; }
+      .menu-icon { width: auto; flex: 0 0 auto; font-size: 18px; line-height: 1.1; }
+      .menu-label { max-width: 100%; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+      .main-content { width: 100%; height: 100vh; height: 100dvh; padding-bottom: calc(68px + var(--safe-bottom)); }
+      .top-bar { min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 14px 12px; }
+      .topbar-heading { min-width: 0; }
+      #sectionTitle { font-size: 18px !important; }
+      .toolbar-actions { width: 100%; display: grid; grid-template-columns: minmax(90px, 1fr) auto; gap: 8px; }
+      .profile-select { width: 100%; min-width: 0; max-width: none; }
+      .toolbar-actions .btn { min-width: 88px; padding: 8px 10px; font-size: 12px; }
+      .search-bar { grid-column: 1 / -1; width: 100%; min-width: 0; }
+      .view-area { min-height: 0; flex-direction: column; }
+      .categories-list { display: flex; width: 100%; height: 52px; min-height: 52px; flex: 0 0 52px; flex-direction: row; overflow-x: auto; overflow-y: hidden; border: 0; border-bottom: 1px solid #292a35; scrollbar-width: none; }
+      .categories-list::-webkit-scrollbar { display: none; }
+      .category-item { display: flex; min-height: 48px; flex: 0 0 auto; align-items: center; padding: 10px 14px; border: 0; white-space: nowrap; }
+      .category-item.all-category { border: 0; border-bottom: 2px solid #e50914; }
+      .content-grid-wrapper { min-height: 0; flex: 1; padding: 14px 12px 18px; }
+      .content-grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 12px; }
+      .card { border-radius: 11px; }
+      .card img { height: clamp(150px, 55vw, 225px); }
+      .card-title { padding: 9px 9px 4px; font-size: 12px; }
+      .card-subtitle { padding: 0 9px 9px; font-size: 11px; }
+      .fav-btn { top: 6px; right: 6px; width: 36px; height: 36px; }
+      .progress-track { margin: 0 9px 9px; }
+      .about-panel { padding-bottom: 8px; }
+      .about-hero { border-radius: 17px; }
+      .about-details { grid-template-columns: 1fr; gap: 10px; }
+      .series-modal, .modal-form { padding: max(0px, env(safe-area-inset-top)) max(0px, env(safe-area-inset-right)) max(0px, env(safe-area-inset-bottom)) max(0px, env(safe-area-inset-left)); }
+      .series-box { width: 100%; height: 100%; max-height: 100dvh; border: 0; border-radius: 0; }
+      .series-header { gap: 10px; padding: 12px 14px; }
+      .series-header h3 { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .series-header button { flex: 0 0 auto; }
+      .series-body { flex-direction: column; }
+      .seasons-list { display: flex; width: 100%; height: 54px; flex: 0 0 54px; flex-direction: row; overflow-x: auto; overflow-y: hidden; border: 0; border-bottom: 1px solid #30313f; }
+      .season-item { display: flex; align-items: center; min-height: 48px; flex: 0 0 auto; padding: 10px 14px; white-space: nowrap; }
+      .episodes-list { padding: 12px; }
+      .player-modal { padding: 0; }
+      .close-player { top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); }
+      .next-ep-btn { right: 12px; bottom: max(18px, env(safe-area-inset-bottom)); }
+      .form-box { padding: 20px 16px; }
+    }
+    @media (max-width: 380px) {
+      .menu-label { font-size: 8px; }
+      .content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card img { height: 160px; }
+      .toolbar-actions { grid-template-columns: minmax(0, 1fr) auto; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="sidebar">
+    <div class="sidebar-header" onclick="resetarParaInicio()" title="Ir para o Início">
+      <img src="neguedri.png" onerror="this.onerror=null; this.src='neguedri.jpg';" alt="Neguedri Stream">
+      <span id="brandFallback" style="display:none;">NEGUEDRI</span>
+    </div>
+
+    <ul class="menu" aria-label="Navegação principal">
+      <li><button type="button" class="menu-item active" onclick="switchSection('live', this)"><span class="menu-icon" aria-hidden="true">📺</span><span class="menu-label">Ao vivo</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('vod', this)"><span class="menu-icon" aria-hidden="true">🎬</span><span class="menu-label">Filmes</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('series', this)"><span class="menu-icon" aria-hidden="true">🍿</span><span class="menu-label">Séries</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('continue', this)"><span class="menu-icon" aria-hidden="true">▶️</span><span class="menu-label">Continuar</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('favorites', this)"><span class="menu-icon" aria-hidden="true">⭐</span><span class="menu-label">Favoritos</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('about', this)"><span class="menu-icon" aria-hidden="true">ℹ️</span><span class="menu-label">Sobre</span></button></li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div class="topbar-heading"><h3 id="sectionTitle">Canais ao Vivo</h3></div>
+      <div class="toolbar-actions">
+        <select id="profileSelect" class="profile-select" aria-label="Perfil" onchange="alterarPerfil()"></select>
+        <button class="btn btn-red" type="button" onclick="abrirModalPerfil()">+ Perfil</button>
+        <input type="search" id="searchInput" class="search-bar" placeholder="Pesquisar títulos..." aria-label="Pesquisar" oninput="filtrarItens()">
+      </div>
+    </div>
+
+    <div class="view-area">
+      <div id="categoriesList" class="categories-list"></div>
+      <div class="content-grid-wrapper">
+        <div id="contentGrid" class="content-grid"></div>
+        <section id="aboutPanel" class="about-panel" aria-labelledby="aboutTitle">
+          <div class="about-hero">
+            <div class="about-kicker">Sua central de entretenimento</div>
+            <h2 id="aboutTitle">Neguedri Stream</h2>
+            <p>Um espaço para reunir canais ao vivo, filmes e séries em uma interface simples, com perfis e recursos para continuar sua programação.</p>
+          </div>
+          <div class="about-details">
+            <article class="about-detail">
+              <h3>Desenvolvedor</h3>
+              <p>Paulo Henrique Felipes de Paula</p>
+              <a class="about-contact" href="https://wa.me/5533998544278" target="_blank" rel="noopener noreferrer">WhatsApp · (33) 99854-4278</a>
+            </article>
+            <article class="about-detail">
+              <h3>Recursos do sistema</h3>
+              <ul>
+                <li>Canais ao vivo, filmes e séries organizados por categoria.</li>
+                <li>Perfis independentes, favoritos e progresso de reprodução.</li>
+                <li>Retomada do filme ou episódio no ponto salvo.</li>
+              </ul>
+            </article>
+            <article class="about-detail">
+              <h3>Compatibilidade</h3>
+              <p>A interface se adapta ao macOS, Windows, iPhone, iPad, Android e navegadores de Smart TVs. A reprodução depende dos formatos aceitos pelo navegador e pelo serviço de conteúdo.</p>
+              <p style="margin-top:8px;">Para abrir em outros aparelhos da mesma rede, use o endereço local exibido no terminal onde o servidor está rodando.</p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Séries -->
+  <div id="seriesModal" class="series-modal">
+    <div class="series-box">
+      <div class="series-header">
+        <h3 id="seriesModalTitle" style="font-size: 15px;">Título da Série</h3>
+        <button class="btn" style="background:#444; color:#fff; padding: 4px 10px; font-size: 12px;" onclick="fecharModalSeries()">✕ Fechar</button>
+      </div>
+      <div class="series-body">
+        <div id="seasonsList" class="seasons-list"></div>
+        <div id="episodesList" class="episodes-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Video -->
+  <div id="playerModal" class="player-modal">
+    <button type="button" class="close-player" onclick="fecharPlayer()">✕ Fechar</button>
+    <div class="video-container">
+      <video id="videoPlayer" controls autoplay playsinline webkit-playsinline preload="metadata"></video>
+      <button id="nextEpBtn" class="next-ep-btn" onclick="tocarProximoEpisodio()">Próximo Episódio ⏭️</button>
+    </div>
+  </div>
+
+  <!-- Modal Add User -->
+  <div id="profileModal" class="modal-form">
+    <div class="form-box">
+      <h3 style="margin-bottom: 12px; font-size: 15px;">Adicionar Novo Perfil</h3>
+      <form id="perfilForm">
+        <div class="form-group"><label>Nome</label><input type="text" id="pNome" required></div>
+        <div class="form-group"><label>Usuário</label><input type="text" id="pUser" required></div>
+        <div class="form-group"><label>Senha</label><input type="password" id="pPass" required></div>
+        <div class="form-group"><label>URL</label><input type="text" id="pUrl" required placeholder="http://servidor:80"></div>
+        <div style="display: flex; gap: 8px; margin-top: 12px;">
+          <button type="submit" class="btn btn-red" style="flex:1;">Salvar</button>
+          <button type="button" class="btn" style="background:#444; color:#fff;" onclick="fecharModalPerfil()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+  let perfis = [];
+  let perfilAtual = null;
+  let secaoAtual = 'live';
+  let itensGerais = [];
+  let listaFavoritos = [];
+  let hls = null;
+  
+  let dadosSerieAtual = null;
+  let serieIdAtual = null;
+  let temporadaAtualKey = null;
+  let episodioAtualIndex = -1;
+  let itemProgressoAtual = null;
+  let progressoConcluido = false;
+  let ultimaGravacaoProgresso = 0;
+  let gravacaoProgressoPendente = Promise.resolve();
+
+  const SERVER_ORIGIN = window.location.protocol.startsWith('http') ? window.location.origin : 'http://localhost:8080';
+
+  document.querySelector('.sidebar-header img').onerror = function() {
+    this.style.display = 'none';
+    document.getElementById('brandFallback').style.display = 'inline';
+  };
+
+  function resetarParaInicio() {
+    const primeiroMenu = document.querySelector('.menu-item');
+    switchSection('live', primeiroMenu);
+  }
+
+  async function carregarPerfis(idParaSelecionar = null) {
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/usuarios`);
+      perfis = await res.json();
+      
+      const select = document.getElementById('profileSelect');
+      select.innerHTML = '';
+
+      if (!Array.isArray(perfis) || perfis.length === 0) {
+        select.innerHTML = '<option value="">Nenhum perfil</option>';
+        abrirModalPerfil();
+        return;
+      }
+
+      perfis.forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        opt.textContent = `${p.nome}`;
+        select.appendChild(opt);
+      });
+
+      const perfilAlvo = perfis.find(p => p.id === idParaSelecionar) || perfis[0];
+      select.value = perfilAlvo.id;
+      perfilAtual = perfilAlvo;
+
+      await atualizarFavoritosMemoria();
+      carregarCategorias();
+    } catch (err) {
+      console.error("Erro perfis:", err);
+    }
+  }
+
+  async function atualizarFavoritosMemoria() {
+    if (!perfilAtual) return;
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/favoritos?userId=${perfilAtual.id}`);
+      listaFavoritos = await res.json();
+    } catch(e) { listaFavoritos = []; }
+  }
+
+  function alterarPerfil() {
+    const id = document.getElementById('profileSelect').value;
+    perfilAtual = perfis.find(p => p.id === id);
+    atualizarFavoritosMemoria().then(() => {
+      if (secaoAtual === 'favorites') carregarAbaFavoritos();
+      else if (secaoAtual === 'continue') carregarAbaHistorico();
+      else if (secaoAtual !== 'about') carregarCategorias();
+    });
+  }
+
+  function switchSection(secao, el) {
+    secaoAtual = secao;
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    if(el) el.classList.add('active');
+
+    const catList = document.getElementById('categoriesList');
+    const aboutPanel = document.getElementById('aboutPanel');
+    const isAbout = secao === 'about';
+    catList.style.display = (secao === 'continue' || secao === 'favorites' || isAbout) ? 'none' : '';
+    document.getElementById('contentGrid').style.display = isAbout ? 'none' : 'grid';
+    aboutPanel.classList.toggle('visible', isAbout);
+    document.getElementById('searchInput').style.display = isAbout ? 'none' : '';
+
+    const titulos = {
+      live: 'Canais ao Vivo',
+      vod: 'Filmes',
+      series: 'Séries',
+      continue: 'Continuar Assistindo',
+      favorites: 'Meus Favoritos',
+      about: 'Sobre o sistema'
+    };
+    document.getElementById('sectionTitle').innerText = titulos[secao];
+    document.getElementById('searchInput').value = '';
+
+    if (isAbout) return;
+    if (secao === 'favorites') carregarAbaFavoritos();
+    else if (secao === 'continue') carregarAbaHistorico();
+    else carregarCategorias();
+  }
+
+  async function carregarCategorias() {
+    if (!perfilAtual) return;
+    const actionMap = { live: 'get_live_categories', vod: 'get_vod_categories', series: 'get_series_categories' };
+    const categoriesList = document.getElementById('categoriesList');
+    categoriesList.innerHTML = '<div style="padding:10px; color:#aaa;">Carregando categorias...</div>';
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${perfilAtual.id}&action=${actionMap[secaoAtual]}`);
+      const json = await res.json();
+
+      categoriesList.innerHTML = '';
+
+      const itemAll = document.createElement('div');
+      itemAll.className = 'category-item all-category active';
+      itemAll.innerText = '🌐 All (Geral)';
+      itemAll.tabIndex = 0;
+      itemAll.setAttribute('role', 'button');
+      itemAll.onclick = () => {
+        document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+        itemAll.classList.add('active');
+        carregarConteudoGeralSecao();
+      };
+      itemAll.onkeydown = event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          itemAll.click();
+        }
+      };
+      categoriesList.appendChild(itemAll);
+
+      if (json.data && Array.isArray(json.data)) {
+        json.data.forEach((cat) => {
+          const item = document.createElement('div');
+          item.className = 'category-item';
+          item.innerText = cat.category_name;
+          item.tabIndex = 0;
+          item.setAttribute('role', 'button');
+          item.onclick = () => {
+            document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+            item.classList.add('active');
+            carregarConteudo(cat.category_id);
+          };
+          item.onkeydown = event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              item.click();
+            }
+          };
+          categoriesList.appendChild(item);
+        });
+      }
+      carregarConteudoGeralSecao();
+    } catch (e) {
+      categoriesList.innerHTML = '<div style="padding:10px; color:#ff5555;">Erro ao carregar categorias.</div>';
+    }
+  }
+
+  async function carregarConteudoGeralSecao() {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando conteúdo geral... (Aguarde)</div>';
+    const actionMap = { live: 'get_live_streams', vod: 'get_vod_streams', series: 'get_series' };
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${perfilAtual.id}&action=${actionMap[secaoAtual]}`);
+      const json = await res.json();
+      
+      if (!json.sucesso) {
+        grid.innerHTML = `<div style="color:#ff5555; padding:20px;">Erro: ${json.erro || 'Desconhecido'}</div>`;
+        return;
+      }
+
+      itensGerais = Array.isArray(json.data) ? json.data : [];
+      if (itensGerais.length === 0) {
+        grid.innerHTML = '<div style="color:#aaa; padding:20px;">Nenhum item encontrado no servidor.</div>';
+        return;
+      }
+
+      renderizarGrid(itensGerais.slice(0, 100), json.server);
+    } catch (e) {
+      grid.innerHTML = '<div style="color:#ff5555; padding:20px;">Erro de conexão ao carregar lista.</div>';
+    }
+  }
+
+  async function carregarConteudo(categoryId) {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando conteúdo da categoria...</div>';
+    const actionMap = { live: 'get_live_streams', vod: 'get_vod_streams', series: 'get_series' };
+    
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${perfilAtual.id}&action=${actionMap[secaoAtual]}&category_id=${categoryId}`);
+      const json = await res.json();
+      
+      if (!json.sucesso) {
+        grid.innerHTML = `<div style="color:#ff5555; padding:20px;">Erro: ${json.erro || 'Desconhecido'}</div>`;
+        return;
+      }
+
+      itensGerais = Array.isArray(json.data) ? json.data : [];
+      renderizarGrid(itensGerais.slice(0, 100), json.server);
+    } catch (e) {
+      grid.innerHTML = '<div style="color:#ff5555; padding:20px;">Erro de conexão ao carregar categoria.</div>';
+    }
+  }
+
+  async function carregarAbaFavoritos() {
+    await atualizarFavoritosMemoria();
+    renderizarGrid(listaFavoritos, { baseUrl: perfilAtual.url, usuario: perfilAtual.usuario, senha: perfilAtual.senha });
+  }
+
+  async function carregarAbaHistorico() {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando progresso...</div>';
+    if (!perfilAtual) return;
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/progresso?userId=${encodeURIComponent(perfilAtual.id)}`);
+      const hist = await res.json();
+      itensGerais = Array.isArray(hist) ? hist : [];
+      if (itensGerais.length === 0) {
+        grid.innerHTML = '<div style="color:#aaa; padding:20px;">Os filmes e episódios que você começar a assistir aparecerão aqui.</div>';
+        return;
+      }
+      renderizarGrid(itensGerais, { baseUrl: perfilAtual.url, usuario: perfilAtual.usuario, senha: perfilAtual.senha });
+    } catch(e) {
+      grid.innerHTML = '<div style="color:#ff5555; padding:20px;">Erro ao carregar progresso.</div>';
+    }
+  }
+
+  function renderizarGrid(lista, server) {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '';
+
+    if (!lista || lista.length === 0) {
+      grid.innerHTML = '<div style="color:#aaa; padding:20px;">Nenhum item encontrado.</div>';
+      return;
+    }
+
+    lista.forEach(item => {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'group');
+
+      const imgUrl = item.stream_icon || item.cover || '';
+      const itemId = item.stream_id || item.series_id || item.id;
+      const itemTipo = item.tipo || secaoAtual;
+      const name = String(item.name || item.title || 'Sem título');
+      const displayName = secaoAtual === 'continue' && item.tipo === 'series'
+        ? String(item.seriesTitle || name)
+        : name;
+
+      let streamUrl = item.streamUrl || '';
+      if (!streamUrl && server) {
+        if (itemTipo === 'live') streamUrl = `${server.baseUrl}/live/${server.usuario}/${server.senha}/${itemId}.m3u8`;
+        else if (itemTipo === 'vod') streamUrl = `${server.baseUrl}/movie/${server.usuario}/${server.senha}/${itemId}.${item.container_extension || 'mp4'}`;
+      }
+
+      const isFav = listaFavoritos.some(f => String(f.id) === String(itemId) && f.tipo === itemTipo);
+      const payloadFav = { id: itemId, name, stream_icon: imgUrl, streamUrl, tipo: itemTipo };
+      const image = document.createElement('img');
+      image.alt = '';
+      image.loading = 'lazy';
+      image.src = imgUrl || 'https://via.placeholder.com/400x600?text=Neguedri';
+      image.onerror = () => {
+        image.onerror = null;
+        image.src = 'https://via.placeholder.com/400x600?text=Neguedri';
+      };
+      card.appendChild(image);
+
+      if (secaoAtual !== 'continue') {
+        const favBtn = document.createElement('button');
+        favBtn.type = 'button';
+        favBtn.className = 'fav-btn';
+        favBtn.textContent = isFav ? '★' : '☆';
+        favBtn.setAttribute('aria-label', isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+        favBtn.onclick = event => {
+          event.stopPropagation();
+          toggleFavorito(payloadFav);
+        };
+        card.appendChild(favBtn);
+      }
+
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = displayName;
+      card.appendChild(title);
+
+      if (secaoAtual === 'continue') {
+        const currentTime = Math.max(0, Number(item.currentTime) || 0);
+        const duration = Math.max(0, Number(item.duration) || 0);
+        const subtitle = document.createElement('div');
+        subtitle.className = 'card-subtitle';
+        subtitle.textContent = item.tipo === 'series'
+          ? `T${item.season || '1'} · Episódio ${item.episodeNumber || '1'} · ${formatarTempo(currentTime)}`
+          : `Retomar em ${formatarTempo(currentTime)}`;
+        card.appendChild(subtitle);
+
+        const track = document.createElement('div');
+        track.className = 'progress-track';
+        track.setAttribute('aria-label', duration ? `${Math.round(Math.min(100, currentTime / duration * 100))}% assistido` : 'Progresso salvo');
+        const fill = document.createElement('div');
+        fill.className = 'progress-fill';
+        fill.style.width = `${duration ? Math.min(100, currentTime / duration * 100) : 0}%`;
+        track.appendChild(fill);
+        card.appendChild(track);
+      }
+
+      card.setAttribute('aria-label', `${displayName}. ${secaoAtual === 'continue' ? 'Continuar assistindo' : 'Abrir'}`);
+      card.onclick = () => {
+        if (secaoAtual === 'continue') retomarProgresso(item);
+        else if (itemTipo === 'series') abrirModalSeries(itemId, name);
+        else abrirPlayer(name, streamUrl, payloadFav);
+      };
+      card.onkeydown = event => {
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
+          event.preventDefault();
+          card.click();
+        }
+      };
+
+      grid.appendChild(card);
+    });
+  }
+
+  async function abrirModalSeries(seriesId, titulo) {
+    serieIdAtual = String(seriesId);
+    document.getElementById('seriesModalTitle').innerText = titulo;
+    document.getElementById('seasonsList').innerHTML = '<div style="padding:10px; color:#aaa;">Carregando...</div>';
+    document.getElementById('episodesList').innerHTML = '';
+    document.getElementById('seriesModal').classList.add('active');
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(perfilAtual.id)}&action=get_series_info&series_id=${encodeURIComponent(seriesId)}`);
+      const json = await res.json();
+      dadosSerieAtual = json;
+      const episodiosObj = json.data && json.data.episodes || {};
+      const temporadasKeys = Object.keys(episodiosObj);
+      const seasonsList = document.getElementById('seasonsList');
+      seasonsList.innerHTML = '';
+
+      temporadasKeys.forEach((tempKey, idx) => {
+        const sBtn = document.createElement('button');
+        sBtn.type = 'button';
+        sBtn.className = 'season-item' + (idx === 0 ? ' active' : '');
+        sBtn.textContent = `Temporada ${tempKey}`;
+        sBtn.onclick = () => {
+          document.querySelectorAll('.season-item').forEach(s => s.classList.remove('active'));
+          sBtn.classList.add('active');
+          exibirEpisodiosTemporada(tempKey);
+        };
+        seasonsList.appendChild(sBtn);
+      });
+
+      if (temporadasKeys.length > 0) exibirEpisodiosTemporada(temporadasKeys[0]);
+    } catch(err) {
+      document.getElementById('seasonsList').innerHTML = '<div style="padding:10px; color:#ff5555;">Erro.</div>';
+    }
+  }
+
+  function exibirEpisodiosTemporada(tempKey) {
+    temporadaAtualKey = tempKey;
+    const episodesList = document.getElementById('episodesList');
+    episodesList.innerHTML = '';
+    const episodios = dadosSerieAtual && dadosSerieAtual.data && dadosSerieAtual.data.episodes[tempKey] || [];
+    const server = dadosSerieAtual && dadosSerieAtual.server;
+
+    episodios.forEach((ep, index) => {
+      const ext = ep.container_extension || 'mp4';
+      const streamUrl = `${server.baseUrl}/series/${server.usuario}/${server.senha}/${ep.id}.${ext}`;
+      const epTitle = ep.title || `Ep ${ep.episode_num}`;
+
+      const card = document.createElement('div');
+      card.className = 'episode-card';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      const info = document.createElement('div');
+      info.className = 'episode-info';
+      const heading = document.createElement('h5');
+      heading.textContent = `E${ep.episode_num || (index + 1)} - ${epTitle}`;
+      info.appendChild(heading);
+      const playButton = document.createElement('button');
+      playButton.type = 'button';
+      playButton.className = 'btn btn-red';
+      playButton.setAttribute('aria-label', `Assistir episódio ${ep.episode_num || (index + 1)}`);
+      playButton.textContent = '▶';
+      card.append(info, playButton);
+      card.onclick = () => tocarEpisodio(tempKey, index);
+      card.onkeydown = event => {
+        if ((event.key === 'Enter' || event.key === ' ') && event.target === card) {
+          event.preventDefault();
+          card.click();
+        }
+      };
+      episodesList.appendChild(card);
+    });
+  }
+
+  function tocarEpisodio(tempKey, index) {
+    temporadaAtualKey = tempKey;
+    episodioAtualIndex = index;
+    const listaEpisodios = dadosSerieAtual.data.episodes[tempKey] || [];
+    const ep = listaEpisodios[index];
+    if (!ep) return;
+
+    const server = dadosSerieAtual.server;
+    const ext = ep.container_extension || 'mp4';
+    const streamUrl = `${server.baseUrl}/series/${server.usuario}/${server.senha}/${ep.id}.${ext}`;
+    const serieNome = dadosSerieAtual.data.info && dadosSerieAtual.data.info.name || 'Série';
+    const numeroEpisodio = ep.episode_num || (index + 1);
+    const tituloCompleto = `${serieNome} S${tempKey}E${numeroEpisodio}`;
+    const playback = {
+      id: String(ep.id),
+      name: tituloCompleto,
+      streamUrl,
+      stream_icon: dadosSerieAtual.data.info && (dadosSerieAtual.data.info.cover || dadosSerieAtual.data.info.movie_image) || '',
+      tipo: 'series',
+      seriesId: String(serieIdAtual || dadosSerieAtual.data.info && (dadosSerieAtual.data.info.series_id || dadosSerieAtual.data.info.id) || ep.id),
+      seriesTitle: serieNome,
+      season: String(tempKey),
+      episodeNumber: String(numeroEpisodio),
+      episodeIndex: index
+    };
+
+    abrirPlayer(tituloCompleto, streamUrl, playback, index + 1 < listaEpisodios.length);
+  }
+
+  async function tocarProximoEpisodio() {
+    if (itemProgressoAtual && !progressoConcluido) {
+      progressoConcluido = true;
+      await salvarProgressoAtual(true);
+    }
+    if (dadosSerieAtual && temporadaAtualKey && episodioAtualIndex >= 0) {
+      const listaEpisodios = dadosSerieAtual.data.episodes[temporadaAtualKey] || [];
+      if (episodioAtualIndex + 1 < listaEpisodios.length) tocarEpisodio(temporadaAtualKey, episodioAtualIndex + 1);
+    }
+  }
+
+  function fecharModalSeries() { document.getElementById('seriesModal').classList.remove('active'); }
+
+  async function toggleFavorito(item) {
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/favoritos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: perfilAtual.id, item: item })
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        listaFavoritos = data.favoritos;
+        if (secaoAtual === 'favorites') carregarAbaFavoritos();
+        else renderizarGrid(itensGerais, { baseUrl: perfilAtual.url, usuario: perfilAtual.usuario, senha: perfilAtual.senha });
+      }
+    } catch(err) { console.error(err); }
+  }
+
+  async function registrarHistorico(item) {
+    if (!perfilAtual || !item) return;
+    try {
+      await fetch(`${SERVER_ORIGIN}/api/historico`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: perfilAtual.id, item: item })
+      });
+    } catch (e) {}
+  }
+
+  function formatarTempo(segundos) {
+    const total = Math.max(0, Math.floor(Number(segundos) || 0));
+    const horas = Math.floor(total / 3600);
+    const minutos = Math.floor((total % 3600) / 60);
+    const segundosRestantes = total % 60;
+    const doisDigitos = valor => String(valor).padStart(2, '0');
+    return horas
+      ? `${horas}:${doisDigitos(minutos)}:${doisDigitos(segundosRestantes)}`
+      : `${doisDigitos(minutos)}:${doisDigitos(segundosRestantes)}`;
+  }
+
+  async function salvarProgressoAtual(concluido = false, usarBeacon = false) {
+    const video = document.getElementById('videoPlayer');
+    if (!perfilAtual || !itemProgressoAtual) return;
+
+    const currentTime = Number(video.currentTime);
+    if (!concluido && (!Number.isFinite(currentTime) || currentTime <= 0)) return;
+
+    const duration = Number(video.duration);
+    const item = {
+      ...itemProgressoAtual,
+      currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
+      duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
+      updatedAt: Date.now()
+    };
+    const payload = { userId: perfilAtual.id, item, concluido };
+    const url = `${SERVER_ORIGIN}/api/progresso`;
+
+    if (usarBeacon && navigator.sendBeacon) {
+      const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      if (navigator.sendBeacon(url, body)) return;
+    }
+
+    const envio = gravacaoProgressoPendente.catch(() => {}).then(() => fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: usarBeacon
+      }));
+    gravacaoProgressoPendente = envio;
+    try {
+      await envio;
+      ultimaGravacaoProgresso = Date.now();
+    } catch (error) {
+      console.warn('Não foi possível salvar o progresso agora.');
+    }
+  }
+
+  function ehUrlHls(url) {
+    try {
+      return new URL(url, window.location.href).pathname.toLowerCase().endsWith('.m3u8');
+    } catch (error) {
+      return String(url || '').toLowerCase().includes('.m3u8');
+    }
+  }
+
+  function abrirPlayer(titulo, url, itemObj, podeTerProximo = false, retomarEm = 0) {
+    const modal = document.getElementById('playerModal');
+    const video = document.getElementById('videoPlayer');
+    const nextBtn = document.getElementById('nextEpBtn');
+
+    video.onpause = null;
+    video.onseeked = null;
+    video.ontimeupdate = null;
+    video.onended = null;
+    video.onloadedmetadata = null;
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+
+    const tipo = itemObj && itemObj.tipo || secaoAtual;
+    itemProgressoAtual = itemObj && ['vod', 'series'].includes(tipo)
+      ? { ...itemObj, id: String(itemObj.id), name: titulo, streamUrl: url, tipo }
+      : null;
+    progressoConcluido = false;
+    ultimaGravacaoProgresso = 0;
+
+    nextBtn.style.display = 'none';
+    modal.classList.add('active');
+    if (itemObj) registrarHistorico(itemProgressoAtual || itemObj);
+
+    const tempoRetomada = Math.max(0, Number(retomarEm || itemObj && itemObj.currentTime) || 0);
+    let posicaoRestaurada = tempoRetomada === 0;
+    let reproducaoIniciada = false;
+
+    function iniciarReproducao() {
+      if (!posicaoRestaurada && Number.isFinite(video.duration) && video.duration > 0) {
+        try {
+          video.currentTime = Math.min(tempoRetomada, Math.max(0, video.duration - 1));
+          posicaoRestaurada = true;
+        } catch (error) {}
+      }
+      if (!reproducaoIniciada) {
+        reproducaoIniciada = true;
+        const tentativa = video.play();
+        if (tentativa && tentativa.catch) tentativa.catch(() => {});
+      }
+    }
+
+    video.ontimeupdate = function() {
+      if (podeTerProximo && video.duration && (video.duration - video.currentTime <= 25)) {
+        nextBtn.style.display = 'block';
+      } else {
+        nextBtn.style.display = 'none';
+      }
+
+      if (itemProgressoAtual && !progressoConcluido && video.currentTime > 0 && Date.now() - ultimaGravacaoProgresso >= 8000) {
+        ultimaGravacaoProgresso = Date.now();
+        salvarProgressoAtual();
+      }
+    };
+
+    video.onpause = function() {
+      if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
+    };
+
+    video.onseeked = function() {
+      if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
+    };
+
+    video.onloadedmetadata = iniciarReproducao;
+    video.onended = async function() {
+      progressoConcluido = true;
+      await salvarProgressoAtual(true);
+      if (podeTerProximo) await tocarProximoEpisodio();
+    };
+
+    if (ehUrlHls(url) && window.Hls && Hls.isSupported()) {
+      hls = new Hls({
+        maxBufferLength: 30,
+        maxMaxBufferLength: 60,
+        liveSyncDurationCount: 3
+      });
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
+    } else {
+      video.src = url;
+      video.load();
+    }
+  }
+
+  function fecharPlayer() {
+    const modal = document.getElementById('playerModal');
+    const video = document.getElementById('videoPlayer');
+    if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
+    video.onpause = null;
+    video.onseeked = null;
+    video.ontimeupdate = null;
+    video.onended = null;
+    video.onloadedmetadata = null;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    if (hls) hls.destroy();
+    hls = null;
+    itemProgressoAtual = null;
+    progressoConcluido = false;
+    modal.classList.remove('active');
+  }
+
+  async function retomarProgresso(item) {
+    if (!item) return;
+    let podeTerProximo = false;
+
+    if (item.tipo === 'series' && item.seriesId) {
+      try {
+        const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(perfilAtual.id)}&action=get_series_info&series_id=${encodeURIComponent(item.seriesId)}`);
+        const json = await res.json();
+        if (json.sucesso && json.data && json.data.episodes) {
+          dadosSerieAtual = json;
+          serieIdAtual = String(item.seriesId);
+          const temporadas = Object.keys(json.data.episodes);
+          temporadaAtualKey = temporadas.find(key => String(key) === String(item.season)) || String(item.season || temporadas[0] || '1');
+          const episodios = json.data.episodes[temporadaAtualKey] || [];
+          const indiceEncontrado = episodios.findIndex(ep => String(ep.id) === String(item.id));
+          episodioAtualIndex = indiceEncontrado >= 0 ? indiceEncontrado : Number(item.episodeIndex) || 0;
+          podeTerProximo = episodioAtualIndex + 1 < episodios.length;
+        }
+      } catch (error) {
+        console.warn('Os dados do próximo episódio não estão disponíveis agora.');
+      }
+    }
+
+    const titulo = item.name || item.seriesTitle || 'Continuar assistindo';
+    abrirPlayer(titulo, item.streamUrl, item, podeTerProximo, item.currentTime);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && itemProgressoAtual && !progressoConcluido) salvarProgressoAtual(false, true);
+  });
+  window.addEventListener('pagehide', () => {
+    if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual(false, true);
+  });
+
+  function abrirModalPerfil() { document.getElementById('profileModal').classList.add('active'); }
+  function fecharModalPerfil() { document.getElementById('profileModal').classList.remove('active'); }
+
+  document.getElementById('perfilForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      nome: document.getElementById('pNome').value,
+      usuario: document.getElementById('pUser').value,
+      senha: document.getElementById('pPass').value,
+      url: document.getElementById('pUrl').value
+    };
+    const res = await fetch(`${SERVER_ORIGIN}/api/usuarios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.sucesso) {
+      document.getElementById('perfilForm').reset();
+      fecharModalPerfil();
+      carregarPerfis(data.perfil.id);
+    }
+  };
+
+  function filtrarItens() {
+    if (!perfilAtual || secaoAtual === 'about') return;
+    const termo = document.getElementById('searchInput').value.toLowerCase();
+    const serverObj = { baseUrl: perfilAtual.url, usuario: perfilAtual.usuario, senha: perfilAtual.senha };
+    if (!termo) {
+      renderizarGrid(itensGerais.slice(0, 100), serverObj);
+      return;
+    }
+    const filtrados = itensGerais.filter(i => String(i.name || i.title || '').toLowerCase().includes(termo));
+    renderizarGrid(filtrados.slice(0, 100), serverObj);
+  }
+
+  document.addEventListener('keydown', event => {
+    const playerModal = document.getElementById('playerModal');
+    const seriesModal = document.getElementById('seriesModal');
+    const profileModal = document.getElementById('profileModal');
+    const backKey = ['Escape', 'Backspace', 'BrowserBack', 'GoBack'].includes(event.key);
+    if (backKey && !event.target.closest('input, textarea, select')) {
+      if (playerModal.classList.contains('active')) {
+        event.preventDefault();
+        fecharPlayer();
+        return;
+      }
+      if (seriesModal.classList.contains('active')) {
+        event.preventDefault();
+        fecharModalSeries();
+        return;
+      }
+      if (profileModal.classList.contains('active')) {
+        event.preventDefault();
+        fecharModalPerfil();
+        return;
+      }
+    }
+
+    const deslocamento = {
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+      ArrowLeft: [-1, 0],
+      ArrowRight: [1, 0]
+    }[event.key];
+    if (!deslocamento || document.getElementById('playerModal').classList.contains('active')) return;
+    if (event.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+
+    const seletores = 'button:not(:disabled), select, input:not(:disabled), [tabindex="0"]';
+    const focaveis = Array.from(document.querySelectorAll(seletores)).filter(element => {
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0 && getComputedStyle(element).visibility !== 'hidden';
+    });
+    const atual = document.activeElement;
+    if (!focaveis.includes(atual)) return;
+
+    const origem = atual.getBoundingClientRect();
+    const centroX = origem.left + origem.width / 2;
+    const centroY = origem.top + origem.height / 2;
+    let proximo = null;
+    let menorPontuacao = Infinity;
+
+    focaveis.forEach(element => {
+      if (element === atual) return;
+      const box = element.getBoundingClientRect();
+      const dx = box.left + box.width / 2 - centroX;
+      const dy = box.top + box.height / 2 - centroY;
+      const primario = deslocamento[0] ? dx * deslocamento[0] : dy * deslocamento[1];
+      const transversal = deslocamento[0] ? Math.abs(dy) : Math.abs(dx);
+      if (primario <= 0) return;
+      const pontuacao = primario + transversal * 2.4;
+      if (pontuacao < menorPontuacao) {
+        menorPontuacao = pontuacao;
+        proximo = element;
+      }
+    });
+
+    if (proximo) {
+      event.preventDefault();
+      proximo.focus();
+    }
+  });
+
+  carregarPerfis();
+</script>
+</body>
+</html>
