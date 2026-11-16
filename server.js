@@ -4,7 +4,7 @@ const path = require('path');
 const os = require('os');
 
 const app = express();
-const PORT = 8080;
+const PORT = process.env.PORT || 8080;
 
 const JSON_PATH = path.join(__dirname, 'dados.json');
 const FAV_PATH = path.join(__dirname, 'favoritos.json');
@@ -172,7 +172,6 @@ app.post('/api/progresso', (req, res) => {
     const existing = progress[userId].find(saved => chaveProgresso(saved) === key);
     const updatedAt = Number(item.updatedAt) || Date.now();
 
-    // Ignora gravações periódicas que tenham chegado depois de uma posição mais recente.
     if (!existing || Number(existing.updatedAt || 0) <= updatedAt) {
       const currentTime = Number(item.currentTime);
       const duration = Number(item.duration);
@@ -205,7 +204,7 @@ app.post('/api/progresso', (req, res) => {
   res.json({ sucesso: true, progresso: progress[userId] });
 });
 
-// Proxy IPTV com Timeout e Tratamento de Erro Robusto
+// Proxy IPTV com Filtro Universal Reforçado e Varredura Profunda
 app.get('/api/iptv-proxy', async (req, res) => {
   const { userId, action, category_id, series_id } = req.query;
   const usuarios = lerUsuarios();
@@ -225,7 +224,7 @@ app.get('/api/iptv-proxy', async (req, res) => {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 segundos de timeout
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
 
     const response = await fetch(remoteUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
@@ -234,7 +233,68 @@ app.get('/api/iptv-proxy', async (req, res) => {
       return res.status(response.status).json({ erro: `Servidor remoto retornou erro ${response.status}` });
     }
     
-    const data = await response.json();
+    let data = await response.json();
+
+    const termosBloqueados = [
+      'adulto', 'adult', 'xxx', '+18', '18+', 'erotico', 'erótico', 
+      'sexo', 'private', 'brazzers', 'privates', 'playboy', 'venus', 
+      'hot', 'lindoas', 'delicias', 'coroa', 'amador', 'porn',
+      'bella da semana', 'espermagedom', 'sensual', 'fetiche', 'campeao de pica',
+      'slumber party', 'shenannigans', 'shenanigans',
+      'a lenda do demônio', 'a size classmate', 'abandon 100 nuki', 
+      'accelerando date', 'ai wa kagi no kaz', 'albeya the anim', 
+      'aikagi the animat', 'aisai nikki', 'ajin ga osuki man', 
+      'shinsei kourin', 'dacryon', 'luna',
+      'ajisal no chiru kor', 'akane wa tumari', 'akebi no hane maho', 
+      'aki sora', 'aku no onna kanbu', 'allargando the an', 
+      'amanane', 'ane koi suki kirai', 'ane kyun joshi ga', 
+      'ane wa yanmama', 'anette san e lilian', 'aniki no yome san', 
+      'aniyome wa jipperi', 'ano danchi no to', 'aoharu snatch', 
+      'arbeit shiyou', 'asgaldh the disto', 'bikyaku seiko koi', 
+      'bishoku ke no rule', 'bitch na izanai-san', 'boku dake no hen', 
+      'boku ni harem se', 'boku to sensei to', 'bust to bust chik', 
+      'buta hime-sama', 'chicchana onaka', 'chisana taubomi', 
+      'class de otoko wa', 'colosseum no sen', 'cosplay', 
+      'gomu o tsuketeru', 'i can', 'ikuusei', 'lenda do overfiend', 
+      'mahou toukei lyris', 'oni chichi harem', 'yumemiru otome',
+      'aibeya the animation', 'ajin ga osuki nan desu ne', 'ajisai no chiru koro ni',
+      'akane wa tsumare somerareru', 'akebi no hana maho', 'amanee', 
+      'aniyome wa ijippari', 'ano danchi no tsuma tachi wa the animation', 
+      'arbeit shiyou lets arbeit', 'bikyaku seido kaichou ai', 'bitch na inane-sama', 
+      'bust to bust chichi wa chichi ni', 'chiisana tsubomi no sono oku ni', 
+      'gomu o tsukete to iimashita yo ne', 'ikusei', 'mahou touki lyristia'
+    ];
+
+    if (Array.isArray(data)) {
+      data = data.filter(item => {
+        // Concatena todas as propriedades possíveis do JSON de forma profunda
+        const propriedadesItem = [
+          item.name,
+          item.title,
+          item.series_name,
+          item.category_name,
+          item.plot,
+          item.cast,
+          item.cover,
+          item.num
+        ];
+
+        const textoCompleto = propriedadesItem
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+        
+        const contemTermo = termosBloqueados.some(termo => {
+          const termoNormalizado = termo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          return textoCompleto.includes(termoNormalizado);
+        });
+
+        return !contemTermo;
+      });
+    }
+
     res.json({
       sucesso: true,
       server: { baseUrl, usuario: perfil.usuario, senha: perfil.senha },
