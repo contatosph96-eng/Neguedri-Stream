@@ -13,7 +13,7 @@
   <link rel="apple-touch-icon" href="/2neguedri.png">
   <link rel="apple-touch-icon" sizes="180x180" href="/2neguedri.png">
   <title>Neguedri Stream</title>
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -1599,22 +1599,6 @@
     }
   }
 
-  async function verificarDisponibilidadeFonte(fonteUrl) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 7000);
-      const resp = await fetch(fonteUrl, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-1024' },
-        signal: controller.signal
-      });
-      clearTimeout(timer);
-      return { ok: resp.ok || resp.status === 206, status: resp.status };
-    } catch (err) {
-      return { ok: false, status: 0 };
-    }
-  }
-
   function abrirPlayer(titulo, url, itemObj, podeTerProximo = false, retomarEm = 0) {
     const modal = document.getElementById('playerModal');
     const video = document.getElementById('videoPlayer');
@@ -1685,9 +1669,9 @@
       if (indiceFonte < filaFontes.length) {
         carregarEntrada(filaFontes[indiceFonte]);
       } else if (ultimoErroRede) {
-        statusBox.textContent = `Servidor do stream indisponível no Render (HTTP ${ultimoErroRede}).`;
+        statusBox.textContent = `Não foi possível reproduzir a fonte (${ultimoErroRede}). Verifique o servidor, o endereço do stream e o codec do vídeo.`;
       } else {
-        statusBox.textContent = 'Formato de vídeo não suportado por este navegador.';
+        statusBox.textContent = 'Não foi possível reproduzir este formato. O navegador pode não oferecer suporte ao codec ou ao tipo de transmissão.';
       }
     }
 
@@ -1723,41 +1707,63 @@
       if (podeTerProximo) await tocarProximoEpisodio();
     };
 
-    async function carregarEntrada(entrada) {
+    function carregarEntrada(entrada) {
       if (hls) {
         hls.destroy();
         hls = null;
       }
 
-      const check = await verificarDisponibilidadeFonte(entrada.fonteUrl);
-      if (!check.ok && check.status >= 400) {
-        ultimoErroRede = check.status;
-      }
+      video.onerror = () => {
+        const erro = video.error;
+        if (erro && erro.code === 2) ultimoErroRede = 'erro de rede';
+        if (erro && erro.code === 3) ultimoErroRede = 'falha de decodificação/codec';
+        if (erro && erro.code === 4) ultimoErroRede = 'formato ou MIME não reconhecido';
+        tentarProximaFonte();
+      };
 
-      if (ehUrlHls(entrada.rawUrl) && window.Hls && Hls.isSupported()) {
-        hls = new Hls({
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          liveSyncDurationCount: 3
-        });
-        hls.loadSource(entrada.fonteUrl);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            if (data.response && data.response.code) {
-              ultimoErroRede = data.response.code;
-            }
-            tentarProximaFonte();
-          }
-        });
-      } else {
-        video.onerror = () => {
-          tentarProximaFonte();
-        };
+      const ehHls = ehUrlHls(entrada.rawUrl);
+      const hlsNativo = ehHls && video.canPlayType('application/vnd.apple.mpegurl');
+
+      // Safari, iPhone e iPad costumam reproduzir HLS nativamente.
+      if (hlsNativo) {
         video.src = entrada.fonteUrl;
         video.load();
+        return;
       }
+
+      if (ehHls && window.Hls && Hls.isSupported()) {
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: false,
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          backBufferLength: 30,
+          manifestLoadingTimeOut: 20000,
+          manifestLoadingMaxRetry: 3,
+          levelLoadingMaxRetry: 3,
+          fragLoadingMaxRetry: 4
+        });
+
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
+          if (hls) hls.loadSource(entrada.fonteUrl);
+        });
+        hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (!data.fatal) return;
+          if (data.response && data.response.code) ultimoErroRede = data.response.code;
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && hls) {
+            hls.recoverMediaError();
+            return;
+          }
+          tentarProximaFonte();
+        });
+        return;
+      }
+
+      // Para MP4/TS e navegadores sem HLS.js.
+      video.src = entrada.fonteUrl;
+      video.load();
     }
 
     if (filaFontes.length > 0) {
