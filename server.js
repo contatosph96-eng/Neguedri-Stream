@@ -13,8 +13,8 @@ const FAV_PATH = path.join(__dirname, 'favoritos.json');
 const HIST_PATH = path.join(__dirname, 'historico.json');
 const PROGRESS_PATH = path.join(__dirname, 'progresso.json');
 
-const ADMIN_USER = 'Neguedri';
-const ADMIN_PASS = '2812';
+const ADMIN_USER = process.env.ADMIN_USER || 'Neguedri';
+const ADMIN_PASS = process.env.ADMIN_PASS || '';
 const UM_MES_MS = 30 * 24 * 60 * 60 * 1000;
 
 app.use(express.urlencoded({ extended: true }));
@@ -164,7 +164,8 @@ function exigirAdmin(req, res, next) {
   const userNome = String(req.headers['x-user-name'] || req.query.userName || req.body?.adminUserName || '').trim().toLowerCase();
   const userPass = String(req.headers['x-user-pass'] || '').trim();
 
-  const ehPrincipal = userId === '1'
+  const ehPrincipal = Boolean(ADMIN_PASS)
+    && userId === '1'
     && userNome === ADMIN_USER.toLowerCase()
     && userPass === ADMIN_PASS;
 
@@ -190,7 +191,7 @@ app.post('/api/auth/login', (req, res) => {
   const iptvPrincipal = obterContaPrincipalIPTV();
 
   // Usuário Principal
-  if (usuarioDigitado.toLowerCase() === ADMIN_USER.toLowerCase() && senhaDigitada === ADMIN_PASS) {
+  if (ADMIN_PASS && usuarioDigitado.toLowerCase() === ADMIN_USER.toLowerCase() && senhaDigitada === ADMIN_PASS) {
     return res.json({
       sucesso: true,
       usuario: {
@@ -504,70 +505,113 @@ app.post('/api/progresso', (req, res) => {
   res.json({ sucesso: true, progresso: progress[userId] });
 });
 
-// Proxy de Stream para evitar bloqueio HTTP/HTTPS e User-Agent no Safari/iOS/MacBook
+// Proxy de Stream HLS e arquivos de mídia.
+// Reescreve segmentos e URIs declaradas em tags HLS (KEY, MAP, MEDIA etc.).
 app.get('/api/stream-proxy', async (req, res) => {
   const { url } = req.query;
   const principal = obterContaPrincipalIPTV();
 
-  if (!url || !principal) {
-    return res.status(400).send('URL inválida.');
+  if (!url || !principal || !principal.url) {
+    return res.status(400).send('URL inválida ou conta principal não configurada.');
   }
 
-  const baseHost = new URL(formatarUrl(principal.url)).host;
+  let baseUrl;
   let targetUrl;
   try {
-    targetUrl = new URL(url);
-  } catch (e) {
+    baseUrl = new URL(formatarUrl(principal.url));
+    targetUrl = new URL(String(url));
+  } catch (error) {
     return res.status(400).send('URL malformada.');
   }
 
-  if (targetUrl.host !== baseHost) {
+  if (!['http:', 'https:'].includes(targetUrl.protocol) || targetUrl.host !== baseUrl.host) {
     return res.status(403).send('Domínio não autorizado.');
   }
 
   try {
     const headers = {
-      'User-Agent': 'IPTVSmartersPro'
+      'User-Agent': 'IPTVSmartersPro',
+      'Accept': '*/*'
     };
-    if (req.headers.range) {
-      headers['Range'] = req.headers.range;
-    }
+    if (req.headers.range) headers.Range = req.headers.range;
 
-    const upstream = await fetch(targetUrl.toString(), { headers });
+    const upstream = await fetch(targetUrl.toString(), {
+      method: 'GET',
+      headers,
+      redirect: 'follow'
+    });
+
     if (!upstream.ok && upstream.status !== 206) {
       return res.status(upstream.status).send('Erro ao obter stream.');
     }
 
-    const contentType = upstream.headers.get('content-type') || '';
+    const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
+    const isPlaylist = /\.m3u8(?:$|[?#])/i.test(targetUrl.pathname)
+      || contentType.includes('mpegurl')
+      || contentType.includes('x-mpegurl');
 
-    if (targetUrl.pathname.endsWith('.m3u8') || contentType.includes('mpegurl')) {
+    if (isPlaylist) {
       const playlistText = await upstream.text();
-      const basePath = targetUrl.href.substring(0, targetUrl.href.lastIndexOf('/') + 1);
+      // A playlist pode redirecionar; URLs relativas devem partir do endereço final.
+      const playlistBase = new URL(upstream.url || targetUrl.toString());
+
+      const criarUrlProxy = (resourceUrl) => {
+        const absolute = new URL(resourceUrl, playlistBase);
+        if (!['http:', 'https:'].includes(absolute.protocol) || absolute.host !== baseUrl.host) {
+          throw new Error('A playlist contém um recurso de domínio não autorizado.');
+        }
+        return '/api/stream-proxy?url=' + encodeURIComponent(absolute.toString());
+      };
+
       const rewritten = playlistText
-        .split('\n')
-        .map(line => {
+        .split(/\r?\n/)
+        .map((line) => {
           const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) return line;
-          const absoluteSegment = trimmed.startsWith('http') ? trimmed : new URL(trimmed, basePath).toString();
-          return `/api/stream-proxy?url=${encodeURIComponent(absoluteSegment)}`;
+          if (!trimmed) return line;
+
+          // URI="..." aparece, entre outras, em EXT-X-KEY, EXT-X-MAP,
+          // EXT-X-MEDIA, EXT-X-I-FRAME-STREAM-INF e EXT-X-SESSION-KEY.
+          if (trimmed.startsWith('#')) {
+            return line.replace(/URI="([^"]+)"/gi, (match, uri) => {
+              try {
+                return 'URI="' + criarUrlProxy(uri) + '"';
+              } catch (error) {
+                console.warn('URI HLS ignorada:', error.message);
+                return match;
+              }
+            });
+          }
+
+          try {
+            return criarUrlProxy(trimmed);
+          } catch (error) {
+            console.warn('Segmento HLS ignorado:', error.message);
+            return line;
+          }
         })
         .join('\n');
 
-      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
-      res.setHeader('Cache-Control', 'no-cache');
+      res.status(200);
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Access-Control-Allow-Origin', '*');
       return res.send(rewritten);
     }
 
     res.status(upstream.status);
-    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
-      const val = upstream.headers.get(h);
-      if (val) res.setHeader(h, val);
+    ['content-type', 'content-length', 'content-range', 'accept-ranges', 'last-modified', 'etag'].forEach((header) => {
+      const value = upstream.headers.get(header);
+      if (value) res.setHeader(header, value);
     });
 
-    if (!upstream.headers.get('content-type') && targetUrl.pathname.endsWith('.ts')) {
+    if (!upstream.headers.get('content-type') && targetUrl.pathname.toLowerCase().endsWith('.ts')) {
       res.setHeader('Content-Type', 'video/mp2t');
     }
+    if (req.headers.range && upstream.status === 206) {
+      res.setHeader('Accept-Ranges', 'bytes');
+    }
 
+    res.setHeader('Access-Control-Allow-Origin', '*');
     if (upstream.body) {
       Readable.fromWeb(upstream.body).pipe(res);
     } else {
@@ -575,7 +619,12 @@ app.get('/api/stream-proxy', async (req, res) => {
     }
   } catch (error) {
     console.error('Erro no stream-proxy:', error.message);
-    if (!res.headersSent) res.status(502).send('Falha na transmissão.');
+    if (!res.headersSent) {
+      const status = /domínio não autorizado/i.test(error.message) ? 403 : 502;
+      res.status(status).send(status === 403 ? error.message : 'Falha na transmissão.');
+    } else {
+      res.end();
+    }
   }
 });
 
