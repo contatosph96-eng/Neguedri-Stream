@@ -564,6 +564,10 @@ app.get('/api/stream-proxy', async (req, res) => {
       if (val) res.setHeader(h, val);
     });
 
+    if (!upstream.headers.get('content-type') && targetUrl.pathname.endsWith('.ts')) {
+      res.setHeader('Content-Type', 'video/mp2t');
+    }
+
     if (upstream.body) {
       Readable.fromWeb(upstream.body).pipe(res);
     } else {
