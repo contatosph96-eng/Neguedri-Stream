@@ -546,7 +546,24 @@ app.get('/api/stream-proxy', async (req, res) => {
     }
 
     const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
-    const isPlaylist = /\.m3u8(?:$|[?#])/i.test(targetUrl.pathname)
+    const finalUrl = upstream.url ? new URL(upstream.url) : targetUrl;
+    console.info('[STREAM-PROXY]', JSON.stringify({
+      status: upstream.status,
+      contentType: contentType || '(ausente)',
+      contentLength: upstream.headers.get('content-length') || '(desconhecido)',
+      requestedPath: targetUrl.pathname,
+      finalHost: finalUrl.host,
+      range: req.headers.range || '(sem Range)'
+    }));
+
+    // Alguns provedores respondem com uma página HTML de bloqueio/erro
+    // em vez do arquivo de mídia. Evita entregar HTML ao elemento <video>.
+    if (contentType.includes('text/html')) {
+      await upstream.body?.cancel().catch(() => {});
+      return res.status(502).send('O servidor IPTV retornou uma página HTML em vez do vídeo. Verifique os logs do Render.');
+    }
+
+    const isPlaylist = /\\.m3u8(?:$|[?#])/i.test(targetUrl.pathname)
       || contentType.includes('mpegurl')
       || contentType.includes('x-mpegurl');
 
