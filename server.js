@@ -635,10 +635,25 @@ app.get('/api/stream-proxy', async (req, res) => {
       res.end();
     }
   } catch (error) {
-    console.error('Erro no stream-proxy:', error.message);
+    // Registra a causa de rede sem expor URL completa, usuário ou senha IPTV.
+    const causas = [];
+    let causa = error;
+    while (causa && causas.length < 4) {
+      causas.push({
+        name: causa.name || 'Error',
+        code: causa.code || causa.errno || null,
+        message: String(causa.message || '').slice(0, 300)
+      });
+      causa = causa.cause;
+    }
+    console.error('[STREAM-PROXY-ERROR]', JSON.stringify({
+      host: targetUrl?.host || '(indisponível)',
+      protocol: targetUrl?.protocol || '(indisponível)',
+      causas
+    }));
     if (!res.headersSent) {
       const status = /domínio não autorizado/i.test(error.message) ? 403 : 502;
-      res.status(status).send(status === 403 ? error.message : 'Falha na transmissão.');
+      res.status(status).send(status === 403 ? error.message : 'Falha na transmissão. Consulte os logs do servidor.');
     } else {
       res.end();
     }
@@ -746,8 +761,19 @@ app.get('/api/iptv-proxy', async (req, res) => {
       data: data
     });
   } catch (error) {
-    console.error("Erro no Proxy IPTV para action:", action, error.message);
-    res.status(500).json({ erro: "Erro de conexão com o servidor IPTV", detalhes: error.message });
+    const causa = error.cause;
+    console.error('[IPTV-API-ERROR]', JSON.stringify({
+      action: action || 'get_live_categories',
+      name: error.name || 'Error',
+      code: error.code || causa?.code || causa?.errno || null,
+      message: String(error.message || '').slice(0, 300),
+      cause: causa ? {
+        name: causa.name || 'Error',
+        code: causa.code || causa.errno || null,
+        message: String(causa.message || '').slice(0, 300)
+      } : null
+    }));
+    res.status(502).json({ erro: "Falha de conexão com o servidor IPTV. Consulte os logs do servidor." });
   }
 });
 
