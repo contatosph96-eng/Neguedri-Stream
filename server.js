@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { Readable } = require('stream');
+const net = require('net');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -535,11 +536,65 @@ app.get('/api/stream-proxy', async (req, res) => {
     };
     if (req.headers.range) headers.Range = req.headers.range;
 
-    const upstream = await fetch(targetUrl.toString(), {
-      method: 'GET',
-      headers,
-      redirect: 'follow'
-    });
+    // Alguns provedores redirecionam o domínio HTTPS para o IP direto da origem
+    // (frequentemente em HTTP/80). No Render, esse IP pode não ser alcançável.
+    // Quando o destino do redirect for um IP, preservamos o host público configurado
+    // e mantemos o caminho/query do recurso, permitindo que o proxy/CDN do domínio
+    // continue tratando a requisição.
+    const normalizarDestinoRedirect = (candidate) => {
+      const destino = candidate instanceof URL ? candidate : new URL(candidate);
+      const hostname = destino.hostname.replace(/^\\[|\\]$/g, '');
+      if (net.isIP(hostname) && !net.isIP(baseUrl.hostname)) {
+        const viaDominio = new URL(baseUrl.origin);
+        viaDominio.pathname = destino.pathname;
+        viaDominio.search = destino.search;
+        viaDominio.hash = destino.hash;
+        console.warn('[STREAM-REDIRECT-IP]', JSON.stringify({
+          ipProtocol: destino.protocol,
+          ipPort: destino.port || '(padrão)',
+          proxyHost: baseUrl.host,
+          action: 'reutilizar-host-publico'
+        }));
+        return viaDominio;
+      }
+      return destino;
+    };
+
+    const buscarUpstream = async (initialUrl) => {
+      let atual = normalizarDestinoRedirect(initialUrl);
+      const visitadas = new Set();
+
+      for (let tentativa = 0; tentativa < 6; tentativa++) {
+        if (visitadas.has(atual.toString())) {
+          throw new Error('Ciclo de redirecionamento detectado no servidor IPTV.');
+        }
+        visitadas.add(atual.toString());
+
+        const resposta = await fetch(atual.toString(), {
+          method: 'GET',
+          headers,
+          redirect: 'manual'
+        });
+
+        const redirecionamentos = [301, 302, 303, 307, 308];
+        if (!redirecionamentos.includes(resposta.status)) {
+          return resposta;
+        }
+
+        const location = resposta.headers.get('location');
+        if (!location) return resposta;
+
+        await resposta.body?.cancel().catch(() => {});
+        atual = normalizarDestinoRedirect(new URL(location, atual));
+        if (!['http:', 'https:'].includes(atual.protocol)) {
+          throw new Error('O servidor IPTV retornou um redirecionamento com protocolo não permitido.');
+        }
+      }
+
+      throw new Error('O servidor IPTV excedeu o limite de redirecionamentos.');
+    };
+
+    const upstream = await buscarUpstream(targetUrl);
 
     if (!upstream.ok && upstream.status !== 206) {
       return res.status(upstream.status).send('Erro ao obter stream.');
@@ -573,7 +628,7 @@ app.get('/api/stream-proxy', async (req, res) => {
       const playlistBase = new URL(upstream.url || targetUrl.toString());
 
       const criarUrlProxy = (resourceUrl) => {
-        const absolute = new URL(resourceUrl, playlistBase);
+        const absolute = normalizarDestinoRedirect(new URL(resourceUrl, playlistBase));
         if (!['http:', 'https:'].includes(absolute.protocol) || absolute.host !== baseUrl.host) {
           throw new Error('A playlist contém um recurso de domínio não autorizado.');
         }
