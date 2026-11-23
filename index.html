@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101116">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Neguedri">
+  <meta name="description" content="Neguedri Stream reúne canais ao vivo, filmes e séries com perfis individuais e retomada de reprodução.">
+  <link rel="icon" href="/2neguedri.png" type="image/png">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/2neguedri.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/2neguedri.png">
+  <title>Neguedri Stream</title>
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #0f1015; color: #fff; display: flex; height: 100vh; overflow: hidden; }
+
+    /* Tela de Login */
+    .auth-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      background: radial-gradient(circle at top, #2a1016 0%, #101116 65%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .auth-screen.hidden { display: none; }
+    .auth-card {
+      width: 100%;
+      max-width: 390px;
+      background: #17181f;
+      border: 1px solid #2d2f42;
+      border-radius: 18px;
+      padding: 28px 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.65);
+      text-align: center;
+    }
+    .auth-logo {
+      width: 84px;
+      height: 84px;
+      border-radius: 20px;
+      object-fit: cover;
+      margin: 0 auto 14px;
+      display: block;
+      border: 1px solid #34374d;
+    }
+    .auth-title { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+    .auth-subtitle { font-size: 13px; color: #a6a8b5; margin-bottom: 20px; }
+    .auth-error {
+      background: rgba(229, 9, 20, 0.16);
+      border: 1px solid #e50914;
+      color: #ff8a90;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 14px;
+      display: none;
+    }
+
+    /* Tela Vermelha de Vencimento */
+    .expired-screen {
+      position: fixed;
+      inset: 0;
+      z-index: 2100;
+      background: linear-gradient(160deg, #7f0810 0%, #3a0307 60%, #1a0204 100%);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    .expired-screen.active { display: flex; }
+    .expired-card {
+      width: 100%;
+      max-width: 440px;
+      background: rgba(20, 4, 6, 0.92);
+      border: 2px solid #ff3b47;
+      border-radius: 20px;
+      padding: 26px 22px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+    }
+    .expired-badge {
+      display: inline-block;
+      background: #e50914;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 99px;
+      margin-bottom: 12px;
+    }
+    .expired-title {
+      font-size: 23px;
+      font-weight: 800;
+      color: #ff6b74;
+      margin-bottom: 8px;
+      line-height: 1.25;
+    }
+    .expired-desc {
+      font-size: 14px;
+      color: #f3d6d8;
+      margin-bottom: 18px;
+    }
+    .pix-box {
+      background: #14090b;
+      border: 1px solid #691b22;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .pix-qr-wrap {
+      background: #ffffff;
+      width: 176px;
+      height: 176px;
+      margin: 0 auto 12px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px;
+    }
+    .pix-key {
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
+    }
+    .pix-owner {
+      font-size: 13px;
+      color: #ffb8be;
+      font-weight: 600;
+    }
+    .receipt-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12px;
+      color: #f0c9cd;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .btn-whatsapp {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #25d366;
+      color: #09180e;
+      font-weight: 800;
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-whatsapp:hover { background: #2ee573; }
+
+    /* Sidebar leve */
+    .sidebar { width: 240px; background: #17181f; border-right: 1px solid #28293d; display: flex; flex-direction: column; }
+    
+    .sidebar-header { 
+      width: 100%;
+      height: 120px;
+      padding: 0;
+      margin: 0;
+      border-bottom: 1px solid #28293d; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      cursor: pointer;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .sidebar-header img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .sidebar-header span { font-size: 20px; font-weight: 800; color: #e50914; padding: 10px; }
+
+    /* Menu Lateral Otimizado */
+    .menu { list-style: none; padding: 10px 0; }
+    .menu-item { padding: 12px 20px; cursor: pointer; color: #a0a0ab; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+    .menu-item:hover, .menu-item.active { background: #222436; color: #fff; border-left: 4px solid #e50914; }
+
+    /* Área Principal */
+    .main-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+    .top-bar { height: 60px; background: #17181f; border-bottom: 1px solid #28293d; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; }
+    .search-bar { width: 300px; padding: 8px 12px; background: #222436; border: 1px solid #333652; border-radius: 4px; color: #fff; }
+    .btn { padding: 8px 14px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+    .btn-red { background: #e50914; color: white; }
+    .btn-manager { background: #2b59c3; color: #fff; }
+    .btn-manager:hover { background: #366be3; }
+    .btn-install { background: #252735; color: #fff; border: 1px solid #3c3f56; }
+    .btn-install:hover { border-color: #e50914; background: #2d3042; }
+    .btn-logout { background: #242633; color: #d5d7e2; border: 1px solid #373a4f; }
+    .btn-logout:hover { background: #323547; }
+
+    .view-area { flex: 1; display: flex; overflow: hidden; }
+    .categories-list { width: 260px; background: #13141c; border-right: 1px solid #28293d; overflow-y: auto; }
+    .category-item { padding: 12px 15px; border-bottom: 1px solid #1c1d29; cursor: pointer; font-size: 14px; color: #bbb; }
+    .category-item:hover, .category-item.active { background: #222436; color: #fff; }
+    .category-item.all-category { font-weight: bold; color: #e50914; border-bottom: 2px solid #28293d; }
+
+    .content-grid-wrapper { flex: 1; padding: 20px; overflow-y: auto; }
+    .content-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+
+    /* Painel Gerenciador de Usuários */
+    .manager-panel { display: none; width: min(980px, 100%); margin: 0 auto; }
+    .manager-panel.visible { display: block; }
+    .manager-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 18px;
+      padding: 18px 20px;
+      background: #17181f;
+      border: 1px solid #2b2c37;
+      border-radius: 14px;
+    }
+    .manager-table-wrap {
+      background: #17181f;
+      border: 1px solid #2b2c37;
+      border-radius: 14px;
+      overflow-x: auto;
+    }
+    table.users-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.users-table th, table.users-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #252734;
+    }
+    table.users-table th {
+      background: #1e202b;
+      color: #b7b8c2;
+      font-weight: 700;
+    }
+    .badge-ok {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(25, 135, 84, 0.22);
+      color: #5ee6a5;
+    }
+    .badge-exp {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(229, 9, 20, 0.25);
+      color: #ff7a83;
+    }
+    .badge-wait {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(255, 202, 40, 0.18);
+      color: #ffd54f;
+    }
+
+    /* Cards Otimizados para TV */
+    .card { background: #17181f; border-radius: 6px; overflow: hidden; border: 1px solid #28293d; cursor: pointer; text-align: center; display: flex; flex-direction: column; position: relative; }
+    .card:focus, .card:hover { border-color: #e50914; }
+    .card img { width: 100%; height: 150px; object-fit: cover; background: #000; }
+    .card-title { padding: 8px; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
+
+    .fav-btn { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.8); border: none; color: #ffca28; font-size: 16px; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
+
+    /* Modal de Séries */
+    .series-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 998; justify-content: center; align-items: center; }
+    .series-modal.active { display: flex; }
+    .series-box { background: #17181f; border-radius: 6px; width: 85%; max-width: 800px; height: 75vh; border: 1px solid #28293d; display: flex; flex-direction: column; overflow: hidden; }
+    .series-header { padding: 15px; background: #222436; border-bottom: 1px solid #28293d; display: flex; justify-content: space-between; align-items: center; }
+    .series-body { flex: 1; display: flex; overflow: hidden; }
+    .seasons-list { width: 200px; background: #13141c; border-right: 1px solid #28293d; overflow-y: auto; }
+    .season-item { padding: 10px 12px; border-bottom: 1px solid #1c1d29; cursor: pointer; font-size: 13px; color: #bbb; }
+    .season-item:hover, .season-item.active { background: #222436; color: #fff; font-weight: bold; }
+    
+    .episodes-list { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+    .episode-card { background: #222436; padding: 10px 14px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333652; }
+    .episode-card:hover { border-color: #e50914; }
+    .episode-info h5 { font-size: 13px; color: #fff; margin-bottom: 2px; }
+
+    /* Player Otimizado */
+    .player-modal { display: none; position: fixed; inset: 0; background: #000; z-index: 1000; justify-content: center; align-items: center; flex-direction: column; }
+    .player-modal.active { display: flex; }
+    .video-container { position: relative; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+    video { width: 100%; height: 100%; background: #000; object-fit: contain; }
+    .close-player { position: absolute; top: 20px; right: 30px; font-size: 28px; color: #fff; cursor: pointer; z-index: 1001; background: rgba(0,0,0,0.5); padding: 5px 12px; border-radius: 4px; }
+    .player-status { position: absolute; top: 24px; left: 24px; z-index: 1001; background: rgba(15,16,21,0.82); color: #ddd; padding: 8px 12px; border-radius: 8px; font-size: 13px; max-width: calc(100% - 140px); }
+
+    .next-ep-btn {
+      display: none;
+      position: absolute;
+      bottom: 30px;
+      right: 30px;
+      background: #e50914;
+      color: #fff;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 1002;
+    }
+
+    /* Modais secundários */
+    .modal-form { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; justify-content: center; align-items: center; }
+    .modal-form.active { display: flex; }
+    .form-box { background: #17181f; padding: 22px; border-radius: 14px; width: 390px; border: 1px solid #28293d; }
+    .form-group { margin-bottom: 12px; text-align: left; }
+    .form-group label { display: block; margin-bottom: 4px; font-size: 12px; color: #bbb; }
+    .form-group input { width: 100%; padding: 9px 10px; background: #222436; border: 1px solid #333652; color: #fff; border-radius: 8px; }
+    .form-hint { font-size: 12px; color: #a6a8b5; line-height: 1.5; margin-bottom: 12px; }
+    .install-steps { padding-left: 18px; color: #d0d2dc; font-size: 13px; line-height: 1.7; margin: 12px 0; text-align: left; }
+
+    :root {
+      color-scheme: dark;
+      --surface: #17181f;
+      --surface-raised: #20212b;
+      --surface-soft: #252735;
+      --line: #30313f;
+      --muted: #a6a8b5;
+      --accent: #ef3340;
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    html { min-height: 100%; background: #101116; }
+    body { min-height: 100vh; min-height: 100dvh; background: #101116; }
+    button, input, select { font: inherit; }
+    button, select, .card, .category-item, .season-item, .episode-card { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+    .sidebar { width: 256px; flex: 0 0 256px; background: #15161d; border-color: #292a35; }
+    .sidebar-header { height: 148px; flex: 0 0 148px; padding: 16px; }
+    .sidebar-header img { width: 100%; height: 100%; object-fit: contain; border-radius: 18px; }
+    .menu { display: flex; flex-direction: column; gap: 7px; padding: 16px 12px; }
+    .menu li { list-style: none; }
+    .menu-item { width: 100%; min-height: 48px; padding: 11px 14px; gap: 12px; border: 1px solid transparent; border-left: 3px solid transparent; border-radius: 12px; background: transparent; color: #b7b8c2; text-align: left; font-size: 14px; transition: background .18s ease, color .18s ease, border-color .18s ease; }
+    .menu-item:hover, .menu-item.active { background: #242630; border-left-color: var(--accent); color: #fff; }
+    .menu-icon { width: 23px; flex: 0 0 23px; text-align: center; font-size: 19px; }
+    .main-content { min-width: 0; background: #101116; }
+    .top-bar { min-height: 76px; height: auto; gap: 14px; padding: 12px 20px; background: #15161d; border-color: #292a35; flex-wrap: wrap; }
+    .topbar-heading { min-width: 140px; }
+    #sectionTitle { font-size: 19px !important; letter-spacing: -.3px; }
+    .user-badge { font-size: 12px; color: #a6a8b5; margin-top: 2px; }
+    .toolbar-actions { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+    .toolbar-actions .btn { min-height: 40px; white-space: nowrap; border-radius: 9px; font-size: 12px; }
+    .search-bar { width: min(22vw, 240px); min-height: 40px; padding: 8px 12px; border-color: var(--line); border-radius: 9px; }
+    .view-area { min-height: 0; }
+    .categories-list { width: 250px; flex: 0 0 250px; border-color: #292a35; }
+    .category-item { min-height: 46px; padding: 13px 16px; border-color: #22232d; font-size: 14px; }
+    .content-grid-wrapper { min-width: 0; padding: 24px; }
+    .content-grid { grid-template-columns: repeat(auto-fill, minmax(174px, 1fr)); gap: 18px; align-content: start; }
+    .card { min-width: 0; border-color: #2b2c37; border-radius: 13px; background: #17181f; text-align: left; transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+    .card:hover, .card:focus-visible { z-index: 1; transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 10px 30px #0007; }
+    .card img { height: clamp(170px, 21vw, 280px); background: #0a0b0e; }
+    .card-title { padding: 12px 12px 5px; font-size: 14px; line-height: 1.35; }
+    .card-subtitle { padding: 0 12px 11px; color: var(--muted); font-size: 12px; }
+    .fav-btn { width: 38px; height: 38px; top: 9px; right: 9px; font-size: 21px; background: #090a0dc9; }
+    .progress-track { height: 4px; margin: 0 12px 12px; overflow: hidden; border-radius: 99px; background: #484954; }
+    .progress-fill { height: 100%; border-radius: inherit; background: var(--accent); }
+    .about-panel { display: none; width: min(900px, 100%); margin: 0 auto; }
+    .about-panel.visible { display: block; }
+    .about-hero { padding: clamp(22px, 5vw, 42px); border: 1px solid #2b2c37; border-radius: 22px; background: radial-gradient(ellipse at top right, #a7192b55, transparent 48%), linear-gradient(145deg, #1b1c25, #13141a); }
+    .about-kicker { margin-bottom: 12px; color: #ff7a83; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; }
+    .about-hero h2 { margin: 0 0 10px; font-size: clamp(26px, 5vw, 40px); }
+    .about-hero p { max-width: 650px; color: #c2c3cc; line-height: 1.65; }
+    .about-details { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; margin-top: 16px; }
+    .about-detail { padding: 19px; border: 1px solid #2b2c37; border-radius: 16px; background: #17181f; }
+    .about-detail h3 { margin-bottom: 9px; font-size: 14px; }
+    .about-detail p, .about-detail li { color: #b5b6c0; font-size: 13px; line-height: 1.6; }
+    .about-detail ul { padding-left: 18px; }
+    .about-contact { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; margin-top: 12px; padding: 10px 15px; border-radius: 10px; background: #198754; color: #fff; font-weight: 700; text-decoration: none; }
+    .about-contact:hover { background: #20a466; }
+    .series-box { width: min(920px, calc(100% - 36px)); height: min(78vh, 760px); height: min(78dvh, 760px); border-radius: 18px; }
+    .series-header { min-height: 62px; padding: 14px 18px; }
+    .series-body { min-height: 0; }
+    .seasons-list { width: 220px; flex: 0 0 220px; }
+    .season-item { min-height: 44px; padding: 12px 16px; border: 0; border-bottom: 1px solid #1c1d29; background: transparent; text-align: left; }
+    .episodes-list { gap: 10px; padding: 16px; }
+    .episode-card { min-height: 64px; padding: 12px 14px; border-radius: 12px; color: #fff; text-align: left; }
+    .episode-card:focus-within, .episode-card:hover { border-color: var(--accent); }
+    .episode-info h5 { font-size: 14px; }
+    .episode-card button { min-width: 44px; min-height: 44px; border-radius: 10px; }
+    .player-modal { padding: env(safe-area-inset-top, 0) env(safe-area-inset-right, 0) env(safe-area-inset-bottom, 0) env(safe-area-inset-left, 0); }
+    .video-container { min-height: 0; }
+    video { max-height: 100dvh; object-fit: contain; }
+    .close-player { top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right)); min-height: 44px; padding: 9px 14px; border: 0; border-radius: 10px; background: #14151bcc; font: inherit; }
+    .next-ep-btn { right: max(20px, env(safe-area-inset-right)); bottom: max(24px, env(safe-area-inset-bottom)); min-height: 48px; border-radius: 12px; }
+    .form-box { width: min(420px, calc(100vw - 28px)); }
+    .form-group input { min-height: 42px; }
+
+    @media (max-width: 700px) {
+      body { display: block; height: 100vh; height: 100dvh; overflow: hidden; }
+      .sidebar { position: fixed; z-index: 30; inset: auto 0 0; display: flex; width: 100%; height: calc(68px + var(--safe-bottom)); flex-direction: row; flex-basis: auto; padding: 0 4px var(--safe-bottom); border: 0; border-top: 1px solid #30313f; background: #15161df5; backdrop-filter: blur(16px); }
+      .sidebar-header { display: none; }
+      .menu { width: 100%; min-width: 0; flex-direction: row; align-items: stretch; justify-content: space-around; gap: 2px; overflow-x: auto; padding: 5px 2px 4px; }
+      .menu li { min-width: 0; flex: 1 1 0; }
+      .menu-item { display: flex; height: 100%; min-height: 56px; flex-direction: column; justify-content: center; gap: 2px; padding: 5px 1px; border: 0; border-top: 3px solid transparent; border-radius: 9px; font-size: 10px; }
+      .menu-item:hover, .menu-item.active { border-top-color: var(--accent); border-left-color: transparent; background: #252630; }
+      .menu-icon { width: auto; flex: 0 0 auto; font-size: 18px; line-height: 1.1; }
+      .menu-label { max-width: 100%; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+      .main-content { width: 100%; height: 100vh; height: 100dvh; padding-bottom: calc(68px + var(--safe-bottom)); }
+      .top-bar { min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 14px 12px; }
+      .toolbar-actions { width: 100%; }
+      .search-bar { width: 100%; min-width: 0; }
+      .view-area { min-height: 0; flex-direction: column; }
+      .categories-list { display: flex; width: 100%; height: 52px; min-height: 52px; flex: 0 0 52px; flex-direction: row; overflow-x: auto; overflow-y: hidden; border: 0; border-bottom: 1px solid #292a35; scrollbar-width: none; }
+      .categories-list::-webkit-scrollbar { display: none; }
+      .category-item { display: flex; min-height: 48px; flex: 0 0 auto; align-items: center; padding: 10px 14px; border: 0; white-space: nowrap; }
+      .category-item.all-category { border: 0; border-bottom: 2px solid #e50914; }
+      .content-grid-wrapper { min-height: 0; flex: 1; padding: 14px 12px 18px; }
+      .content-grid { grid-template-columns: repeat(auto-fill, minmax(138px, 1fr)); gap: 12px; }
+      .card img { height: clamp(150px, 55vw, 225px); }
+      .series-box { width: 100%; height: 100%; max-height: 100dvh; border: 0; border-radius: 0; }
+      .series-body { flex-direction: column; }
+      .seasons-list { display: flex; width: 100%; height: 54px; flex: 0 0 54px; flex-direction: row; overflow-x: auto; overflow-y: hidden; border: 0; border-bottom: 1px solid #30313f; }
+      .season-item { display: flex; align-items: center; min-height: 48px; flex: 0 0 auto; padding: 10px 14px; white-space: nowrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tela de Login -->
+  <div id="loginScreen" class="auth-screen">
+    <div class="auth-card">
+      <img src="/2neguedri.png" alt="Neguedri Stream" class="auth-logo">
+      <h1 class="auth-title">Neguedri Stream</h1>
+      <p class="auth-subtitle">Entre com seu usuário e senha para acessar</p>
+      <div id="loginError" class="auth-error"></div>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginUsuario">Nome de Usuário</label>
+          <input type="text" id="loginUsuario" required autocomplete="username" placeholder="Digite seu usuário">
+        </div>
+        <div class="form-group">
+          <label for="loginSenha">Senha</label>
+          <input type="password" id="loginSenha" required autocomplete="current-password" placeholder="Digite sua senha">
+        </div>
+        <button type="submit" class="btn btn-red" style="width:100%; min-height:44px; font-size:14px; margin-top:6px;">Entrar</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Tela Vermelha de Vencimento (1 mês expirado) -->
+  <div id="expiredScreen" class="expired-screen">
+    <div class="expired-card">
+      <div class="expired-badge">Acesso Bloqueado</div>
+      <h2 class="expired-title">Seu mês venceu! Favor fazer a Renovação!</h2>
+      <p class="expired-desc">O período de 1 mês de uso foi encerrado. Realize o pagamento via PIX para renovar seu acesso.</p>
+
+      <div class="pix-box">
+        <div class="pix-qr-wrap">
+          <canvas id="pixQrCanvas" width="160" height="160"></canvas>
+        </div>
+        <div class="pix-key">Chave PIX: 33999877319</div>
+        <div class="pix-owner">Andriely Sivirino Vicente</div>
+        <button type="button" class="btn btn-install" style="margin-top:10px; font-size:12px;" onclick="copiarChavePix()">📋 Copiar Chave PIX</button>
+      </div>
+
+      <div class="receipt-row">
+        <span>Enviar comprovante para:</span>
+        <a class="btn-whatsapp" href="https://wa.me/5533998544278?text=Ol%C3%A1%2C%20segue%20o%20comprovante%20de%20renova%C3%A7%C3%A3o%20do%20Neguedri%20Stream." target="_blank" rel="noopener noreferrer">Whatsapp</a>
+      </div>
+
+      <button type="button" class="btn btn-logout" style="width:100%; margin-top:16px;" onclick="sairParaLogin()">Voltar para o Login</button>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <div class="sidebar-header" onclick="resetarParaInicio()" title="Ir para o Início">
+      <img src="/neguedri.png" onerror="this.onerror=null; this.src='/2neguedri.png';" alt="Neguedri Stream">
+      <span id="brandFallback" style="display:none;">NEGUEDRI</span>
+    </div>
+
+    <ul class="menu" aria-label="Navegação principal">
+      <li><button type="button" class="menu-item active" onclick="switchSection('live', this)"><span class="menu-icon" aria-hidden="true">📺</span><span class="menu-label">Ao vivo</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('vod', this)"><span class="menu-icon" aria-hidden="true">🎬</span><span class="menu-label">Filmes</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('series', this)"><span class="menu-icon" aria-hidden="true">🍿</span><span class="menu-label">Séries</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('continue', this)"><span class="menu-icon" aria-hidden="true">▶️</span><span class="menu-label">Continuar</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('favorites', this)"><span class="menu-icon" aria-hidden="true">⭐</span><span class="menu-label">Favoritos</span></button></li>
+      <li><button type="button" class="menu-item" onclick="switchSection('about', this)"><span class="menu-icon" aria-hidden="true">ℹ️</span><span class="menu-label">Sobre</span></button></li>
+    </ul>
+  </div>
+
+  <div class="main-content">
+    <div class="top-bar">
+      <div class="topbar-heading">
+        <h3 id="sectionTitle">Canais ao Vivo</h3>
+        <div id="userSessionInfo" class="user-badge"></div>
+      </div>
+      <div class="toolbar-actions">
+        <button id="managerBtn" class="btn btn-manager" type="button" style="display:none;" onclick="abrirGerenciador()">⚙️ Gerenciador</button>
+        <button id="installAppBtn" class="btn btn-install" type="button" onclick="instalarAplicativo()">📲 Instalar App</button>
+        <input type="search" id="searchInput" class="search-bar" placeholder="Pesquisar títulos..." aria-label="Pesquisar" oninput="filtrarItens()">
+        <button class="btn btn-logout" type="button" onclick="sairParaLogin()">Sair</button>
+      </div>
+    </div>
+
+    <div class="view-area">
+      <div id="categoriesList" class="categories-list"></div>
+      <div class="content-grid-wrapper">
+        <div id="contentGrid" class="content-grid"></div>
+
+        <!-- Página Gerenciador de Usuários (Somente Principal: Neguedri) -->
+        <section id="managerPanel" class="manager-panel" aria-labelledby="managerTitle">
+          <div class="manager-header">
+            <div>
+              <h2 id="managerTitle" style="font-size:20px; margin-bottom:4px;">Gerenciador de Usuários</h2>
+              <p style="font-size:13px; color:#a6a8b5;">Cada usuário possui 1 mês (30 dias) após o primeiro login e usa a lista principal.</p>
+            </div>
+            <button type="button" class="btn btn-red" onclick="abrirModalCriarUsuario()">+ Criar Usuário</button>
+          </div>
+
+          <div class="manager-table-wrap">
+            <table class="users-table">
+              <thead>
+                <tr>
+                  <th>Usuário</th>
+                  <th>Senha</th>
+                  <th>Telefone</th>
+                  <th>Status (1 Mês)</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody id="managerUsersBody">
+                <tr><td colspan="5" style="color:#a6a8b5;">Carregando usuários...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="aboutPanel" class="about-panel" aria-labelledby="aboutTitle">
+          <div class="about-hero">
+            <div class="about-kicker">Sua central de entretenimento</div>
+            <h2 id="aboutTitle">Neguedri Stream</h2>
+            <p>Um espaço para reunir canais ao vivo, filmes e séries em uma interface simples, com usuários individuais e retomada de reprodução em qualquer dispositivo.</p>
+            <div style="margin-top: 16px;">
+              <button class="btn btn-red" type="button" onclick="instalarAplicativo()">📲 Instalar como Aplicativo</button>
+            </div>
+          </div>
+          <div class="about-details">
+            <article class="about-detail">
+              <h3>Desenvolvedor</h3>
+              <p>Paulo Henrique Felipes de Paula</p>
+              <a class="about-contact" href="https://wa.me/5533998544278" target="_blank" rel="noopener noreferrer">WhatsApp · (33) 99854-4278</a>
+            </article>
+            <article class="about-detail">
+              <h3>Recursos do sistema</h3>
+              <ul>
+                <li>Canais ao vivo, filmes e séries organizados por categoria.</li>
+                <li>Usuários individuais com favoritos e progresso próprios usando a lista principal.</li>
+                <li>Retomada automática do filme ou episódio no ponto salvo.</li>
+              </ul>
+            </article>
+            <article class="about-detail">
+              <h3>Compatibilidade</h3>
+              <p>Compatível com macOS, Windows, iPhone, iPad, Android e Smart TVs, podendo ser instalado diretamente pelo navegador como aplicativo.</p>
+            </article>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <!-- Popup Criar Usuário -->
+  <div id="createUserModal" class="modal-form">
+    <div class="form-box">
+      <h3 style="margin-bottom: 12px; font-size: 16px;">Criar Novo Usuário</h3>
+      <form id="createUserForm">
+        <div class="form-group">
+          <label for="uUsuario">Usuário:</label>
+          <input type="text" id="uUsuario" required placeholder="Nome de usuário">
+        </div>
+        <div class="form-group">
+          <label for="uSenha">Senha:</label>
+          <input type="password" id="uSenha" required placeholder="Senha de acesso">
+        </div>
+        <div class="form-group">
+          <label for="uTelefone">Telefone:</label>
+          <input type="tel" id="uTelefone" required placeholder="(33) 99999-9999">
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 14px;">
+          <button type="submit" class="btn btn-red" style="flex:1;">Salvar Usuário</button>
+          <button type="button" class="btn" style="background:#444; color:#fff;" onclick="fecharModalCriarUsuario()">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal de Séries -->
+  <div id="seriesModal" class="series-modal">
+    <div class="series-box">
+      <div class="series-header">
+        <h3 id="seriesModalTitle" style="font-size: 15px;">Título da Série</h3>
+        <button class="btn" style="background:#444; color:#fff; padding: 4px 10px; font-size: 12px;" onclick="fecharModalSeries()">✕ Fechar</button>
+      </div>
+      <div class="series-body">
+        <div id="seasonsList" class="seasons-list"></div>
+        <div id="episodesList" class="episodes-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Video -->
+  <div id="playerModal" class="player-modal">
+    <div id="playerStatus" class="player-status" style="display:none;">Carregando transmissão...</div>
+    <button type="button" class="close-player" onclick="fecharPlayer()">✕ Fechar</button>
+    <div class="video-container">
+      <video id="videoPlayer" controls autoplay playsinline webkit-playsinline preload="metadata"></video>
+      <button id="nextEpBtn" class="next-ep-btn" onclick="tocarProximoEpisodio()">Próximo Episódio ⏭️</button>
+    </div>
+  </div>
+
+  <!-- Modal Instruções de Instalação App -->
+  <div id="installModal" class="modal-form">
+    <div class="form-box">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:12px;">
+        <img src="/2neguedri.png" alt="Ícone Neguedri" style="width:52px; height:52px; border-radius:12px; border:1px solid #333652;">
+        <div>
+          <h3 style="font-size: 16px;">Instalar Neguedri Stream</h3>
+          <p style="font-size: 12px; color: #a6a8b5;">Adicione o app na sua tela inicial</p>
+        </div>
+      </div>
+      <div id="installInstructions"></div>
+      <div style="display: flex; gap: 8px; margin-top: 14px;">
+        <button type="button" class="btn btn-red" style="flex:1;" onclick="fecharModalInstall()">Entendi</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+  const PIX_CHAVE = '33999877319';
+  const PIX_NOME = 'Andriely Sivirino Vicente';
+
+  let usuarioLogado = null;
+  let secaoAtual = 'live';
+  let itensGerais = [];
+  let listaFavoritos = [];
+  let hls = null;
+  let deferredInstallPrompt = null;
+  let monitorVencimentoTimer = null;
+
+  let dadosSerieAtual = null;
+  let serieIdAtual = null;
+  let temporadaAtualKey = null;
+  let episodioAtualIndex = -1;
+  let itemProgressoAtual = null;
+  let progressoConcluido = false;
+  let ultimaGravacaoProgresso = 0;
+  let gravacaoProgressoPendente = Promise.resolve();
+
+  const SERVER_ORIGIN = window.location.protocol.startsWith('http') ? window.location.origin : 'http://localhost:8080';
+
+  if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    const btn = document.getElementById('installAppBtn');
+    if (btn) btn.style.display = 'inline-flex';
+  });
+
+  window.addEventListener('appinstalled', () => {
+    deferredInstallPrompt = null;
+    const btn = document.getElementById('installAppBtn');
+    if (btn) btn.style.display = 'none';
+  });
+
+  if (window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true) {
+    const btn = document.getElementById('installAppBtn');
+    if (btn) btn.style.display = 'none';
+  }
+
+  function gerarQrCodePix() {
+    const canvas = document.getElementById('pixQrCanvas');
+    if (!canvas || !window.QRCode) return;
+    const payloadPix = `PIX|CHAVE:${PIX_CHAVE}|NOME:${PIX_NOME}|APP:Neguedri Stream`;
+    QRCode.toCanvas(canvas, payloadPix, { width: 160, margin: 1 }, () => {});
+  }
+
+  function copiarChavePix() {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(PIX_CHAVE).then(() => {
+        alert('Chave PIX 33999877319 copiada!');
+      }).catch(() => {});
+    }
+  }
+
+  function exibirTelaVencimento() {
+    if (monitorVencimentoTimer) clearInterval(monitorVencimentoTimer);
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('expiredScreen').classList.add('active');
+    gerarQrCodePix();
+  }
+
+  function sairParaLogin() {
+    if (monitorVencimentoTimer) clearInterval(monitorVencimentoTimer);
+    usuarioLogado = null;
+    localStorage.removeItem('neguedri_sessao');
+    document.getElementById('expiredScreen').classList.remove('active');
+    document.getElementById('loginScreen').classList.remove('hidden');
+    document.getElementById('loginSenha').value = '';
+    document.getElementById('loginError').style.display = 'none';
+  }
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const usuario = document.getElementById('loginUsuario').value.trim();
+    const senha = document.getElementById('loginSenha').value.trim();
+    const erroBox = document.getElementById('loginError');
+    erroBox.style.display = 'none';
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario, senha })
+      });
+      const data = await res.json();
+
+      if (res.status === 403 && data.vencido) {
+        exibirTelaVencimento();
+        return;
+      }
+
+      if (!res.ok || !data.sucesso) {
+        erroBox.textContent = data.erro || 'Não foi possível entrar.';
+        erroBox.style.display = 'block';
+        return;
+      }
+
+      iniciarSessao(data.usuario);
+    } catch (err) {
+      erroBox.textContent = 'Erro de conexão com o servidor.';
+      erroBox.style.display = 'block';
+    }
+  });
+
+  async function iniciarSessao(user) {
+    usuarioLogado = user;
+    localStorage.setItem('neguedri_sessao', JSON.stringify(user));
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('expiredScreen').classList.remove('active');
+
+    const managerBtn = document.getElementById('managerBtn');
+    managerBtn.style.display = user.role === 'admin' ? 'inline-flex' : 'none';
+
+    const infoEl = document.getElementById('userSessionInfo');
+    if (user.role === 'admin') {
+      infoEl.textContent = `Usuário: ${user.nome} (Principal)`;
+    } else {
+      infoEl.textContent = `Usuário: ${user.nome} · ${user.diasRestantes ?? 30} dia(s) restante(s)`;
+    }
+
+    if (monitorVencimentoTimer) clearInterval(monitorVencimentoTimer);
+    if (user.role !== 'admin') {
+      monitorVencimentoTimer = setInterval(async () => {
+        try {
+          const r = await fetch(`${SERVER_ORIGIN}/api/auth/status?userId=${encodeURIComponent(user.id)}`);
+          const st = await r.json();
+          if (st.vencido) exibirTelaVencimento();
+        } catch (_) {}
+      }, 30000);
+    }
+
+    await atualizarFavoritosMemoria();
+    carregarCategorias();
+  }
+
+  function instalarAplicativo() {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      deferredInstallPrompt.userChoice.finally(() => {
+        deferredInstallPrompt = null;
+      });
+      return;
+    }
+
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isMacSafari = /Macintosh/i.test(ua) && /Safari/i.test(ua) && !/Chrome|Chromium|Edg/i.test(ua);
+    const box = document.getElementById('installInstructions');
+
+    if (isIOS) {
+      box.innerHTML = `
+        <p class="form-hint">No <strong>iPhone ou iPad (Safari)</strong>:</p>
+        <ol class="install-steps">
+          <li>Toque no ícone de <strong>Compartilhar</strong> (quadrado com seta para cima) na barra do navegador.</li>
+          <li>Role para baixo e toque em <strong>Adicionar à Tela de Início</strong>.</li>
+          <li>Toque em <strong>Adicionar</strong> no canto superior direito.</li>
+        </ol>`;
+    } else if (isMacSafari) {
+      box.innerHTML = `
+        <p class="form-hint">No <strong>MacBook (Safari)</strong>:</p>
+        <ol class="install-steps">
+          <li>No menu superior do Mac, clique em <strong>Arquivo</strong> (ou no botão Compartilhar).</li>
+          <li>Selecione <strong>Adicionar ao Dock...</strong>.</li>
+          <li>Clique em <strong>Adicionar</strong> para criar o aplicativo com o ícone oficial.</li>
+        </ol>`;
+    } else {
+      box.innerHTML = `
+        <p class="form-hint">No <strong>Chrome, Edge ou Android</strong>:</p>
+        <ol class="install-steps">
+          <li>Abra o menu do navegador (<strong>⋮</strong> ou <strong>⋯</strong> no canto superior direito).</li>
+          <li>Selecione <strong>Instalar Neguedri Stream</strong> ou <strong>Adicionar à tela inicial</strong>.</li>
+          <li>Confirme em <strong>Instalar</strong>.</li>
+        </ol>`;
+    }
+
+    document.getElementById('installModal').classList.add('active');
+  }
+
+  function fecharModalInstall() {
+    document.getElementById('installModal').classList.remove('active');
+  }
+
+  // Gerenciador de Usuários
+  function abrirGerenciador() {
+    if (!usuarioLogado || usuarioLogado.role !== 'admin') return;
+    secaoAtual = 'manager';
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    document.getElementById('categoriesList').style.display = 'none';
+    document.getElementById('contentGrid').style.display = 'none';
+    document.getElementById('aboutPanel').classList.remove('visible');
+    document.getElementById('managerPanel').classList.add('visible');
+    document.getElementById('searchInput').style.display = 'none';
+    document.getElementById('sectionTitle').innerText = 'Gerenciador';
+    carregarListaGerenciador();
+  }
+
+  async function carregarListaGerenciador() {
+    const tbody = document.getElementById('managerUsersBody');
+    tbody.innerHTML = '<tr><td colspan="5" style="color:#a6a8b5;">Carregando...</td></tr>';
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/gerenciador/usuarios`);
+      const data = await res.json();
+      const lista = Array.isArray(data.usuarios) ? data.usuarios : [];
+
+      if (lista.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" style="color:#a6a8b5;">Nenhum usuário criado ainda.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = '';
+      lista.forEach(u => {
+        const tr = document.createElement('tr');
+        let statusHtml = '<span class="badge-wait">Aguardando 1º login (30d)</span>';
+        if (u.vencido) {
+          statusHtml = '<span class="badge-exp">Vencido (Bloqueado)</span>';
+        } else if (u.expiresAt) {
+          statusHtml = `<span class="badge-ok">Ativo · ${u.diasRestantes} dia(s)</span>`;
+        }
+
+        tr.innerHTML = `
+          <td><strong>${u.usuario}</strong></td>
+          <td>${u.senha}</td>
+          <td>${u.telefone}</td>
+          <td>${statusHtml}</td>
+          <td style="display:flex; gap:6px; flex-wrap:wrap;">
+            <button type="button" class="btn btn-install" style="padding:5px 10px; min-height:32px;" onclick="renovarUsuario('${u.id}')">+30 Dias</button>
+            <button type="button" class="btn btn-red" style="padding:5px 10px; min-height:32px;" onclick="excluirUsuario('${u.id}')">Excluir</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    } catch (_) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:#ff7a83;">Erro ao carregar usuários.</td></tr>';
+    }
+  }
+
+  function abrirModalCriarUsuario() {
+    document.getElementById('createUserModal').classList.add('active');
+  }
+
+  function fecharModalCriarUsuario() {
+    document.getElementById('createUserModal').classList.remove('active');
+  }
+
+  document.getElementById('createUserForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const payload = {
+      usuario: document.getElementById('uUsuario').value.trim(),
+      senha: document.getElementById('uSenha').value.trim(),
+      telefone: document.getElementById('uTelefone').value.trim()
+    };
+    const res = await fetch(`${SERVER_ORIGIN}/api/gerenciador/usuarios`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok || !data.sucesso) {
+      alert(data.erro || 'Erro ao criar usuário.');
+      return;
+    }
+    document.getElementById('createUserForm').reset();
+    fecharModalCriarUsuario();
+    carregarListaGerenciador();
+  });
+
+  async function renovarUsuario(id) {
+    await fetch(`${SERVER_ORIGIN}/api/gerenciador/usuarios/${encodeURIComponent(id)}/renovar`, { method: 'POST' });
+    carregarListaGerenciador();
+  }
+
+  async function excluirUsuario(id) {
+    await fetch(`${SERVER_ORIGIN}/api/gerenciador/usuarios/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    carregarListaGerenciador();
+  }
+
+  function normalizarImagem(url) {
+    if (!url) return 'https://via.placeholder.com/400x600?text=Neguedri';
+    const str = String(url).trim();
+    if (window.location.protocol === 'https:' && str.startsWith('http://image.tmdb.org')) {
+      return str.replace('http://', 'https://');
+    }
+    return str;
+  }
+
+  function construirUrlReproducao(urlOriginal) {
+    if (!urlOriginal) return '';
+    if (window.location.protocol === 'https:' && String(urlOriginal).startsWith('http')) {
+      return `${SERVER_ORIGIN}/api/stream-proxy?url=${encodeURIComponent(urlOriginal)}`;
+    }
+    return urlOriginal;
+  }
+
+  function resetarParaInicio() {
+    const primeiroMenu = document.querySelector('.menu-item');
+    switchSection('live', primeiroMenu);
+  }
+
+  async function atualizarFavoritosMemoria() {
+    if (!usuarioLogado) return;
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/favoritos?userId=${encodeURIComponent(usuarioLogado.id)}`);
+      listaFavoritos = await res.json();
+    } catch(e) { listaFavoritos = []; }
+  }
+
+  function switchSection(secao, el) {
+    secaoAtual = secao;
+    document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+    if(el) el.classList.add('active');
+
+    const catList = document.getElementById('categoriesList');
+    const aboutPanel = document.getElementById('aboutPanel');
+    const managerPanel = document.getElementById('managerPanel');
+    const isAbout = secao === 'about';
+    const isManager = secao === 'manager';
+
+    catList.style.display = (secao === 'continue' || secao === 'favorites' || isAbout || isManager) ? 'none' : '';
+    document.getElementById('contentGrid').style.display = (isAbout || isManager) ? 'none' : 'grid';
+    aboutPanel.classList.toggle('visible', isAbout);
+    managerPanel.classList.toggle('visible', isManager);
+    document.getElementById('searchInput').style.display = (isAbout || isManager) ? 'none' : '';
+
+    const titulos = {
+      live: 'Canais ao Vivo',
+      vod: 'Filmes',
+      series: 'Séries',
+      continue: 'Continuar Assistindo',
+      favorites: 'Meus Favoritos',
+      about: 'Sobre o sistema',
+      manager: 'Gerenciador'
+    };
+    document.getElementById('sectionTitle').innerText = titulos[secao];
+    document.getElementById('searchInput').value = '';
+
+    if (isAbout || isManager) return;
+    if (secao === 'favorites') carregarAbaFavoritos();
+    else if (secao === 'continue') carregarAbaHistorico();
+    else carregarCategorias();
+  }
+
+  async function carregarCategorias() {
+    if (!usuarioLogado) return;
+    const actionMap = { live: 'get_live_categories', vod: 'get_vod_categories', series: 'get_series_categories' };
+    const categoriesList = document.getElementById('categoriesList');
+    categoriesList.innerHTML = '<div style="padding:10px; color:#aaa;">Carregando categorias...</div>';
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(usuarioLogado.id)}&action=${actionMap[secaoAtual]}`);
+      const json = await res.json();
+
+      categoriesList.innerHTML = '';
+
+      const itemAll = document.createElement('div');
+      itemAll.className = 'category-item all-category active';
+      itemAll.innerText = '🌐 All (Geral)';
+      itemAll.tabIndex = 0;
+      itemAll.setAttribute('role', 'button');
+      itemAll.onclick = () => {
+        document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+        itemAll.classList.add('active');
+        carregarConteudoGeralSecao();
+      };
+      itemAll.onkeydown = event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          itemAll.click();
+        }
+      };
+      categoriesList.appendChild(itemAll);
+
+      if (json.data && Array.isArray(json.data)) {
+        json.data.forEach((cat) => {
+          const item = document.createElement('div');
+          item.className = 'category-item';
+          item.innerText = cat.category_name;
+          item.tabIndex = 0;
+          item.setAttribute('role', 'button');
+          item.onclick = () => {
+            document.querySelectorAll('.category-item').forEach(c => c.classList.remove('active'));
+            item.classList.add('active');
+            carregarConteudo(cat.category_id);
+          };
+          item.onkeydown = event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              item.click();
+            }
+          };
+          categoriesList.appendChild(item);
+        });
+      }
+      carregarConteudoGeralSecao();
+    } catch (e) {
+      categoriesList.innerHTML = '<div style="padding:10px; color:#ff5555;">Erro ao carregar categorias.</div>';
+    }
+  }
+
+  async function carregarConteudoGeralSecao() {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando conteúdo geral... (Aguarde)</div>';
+    const actionMap = { live: 'get_live_streams', vod: 'get_vod_streams', series: 'get_series' };
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(usuarioLogado.id)}&action=${actionMap[secaoAtual]}`);
+      const json = await res.json();
+      
+      if (!json.sucesso) {
+        grid.innerHTML = `<div style="color:#ff5555; padding:20px;">Erro: ${json.erro || 'Desconhecido'}</div>`;
+        return;
+      }
+
+      itensGerais = Array.isArray(json.data) ? json.data : [];
+      if (itensGerais.length === 0) {
+        grid.innerHTML = '<div style="color:#aaa; padding:20px;">Nenhum item encontrado no servidor.</div>';
+        return;
+      }
+
+      renderizarGrid(itensGerais.slice(0, 100), json.server);
+    } catch (e) {
+      grid.innerHTML = '<div style="color:#ff5555; padding:20px;">Erro de conexão ao carregar lista.</div>';
+    }
+  }
+
+  async function carregarConteudo(categoryId) {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando conteúdo da categoria...</div>';
+    const actionMap = { live: 'get_live_streams', vod: 'get_vod_streams', series: 'get_series' };
+    
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(usuarioLogado.id)}&action=${actionMap[secaoAtual]}&category_id=${encodeURIComponent(categoryId)}`);
+      const json = await res.json();
+      
+      if (!json.sucesso) {
+        grid.innerHTML = `<div style="color:#ff5555; padding:20px;">Erro: ${json.erro || 'Desconhecido'}</div>`;
+        return;
+      }
+
+      itensGerais = Array.isArray(json.data) ? json.data : [];
+      renderizarGrid(itensGerais.slice(0, 100), json.server);
+    } catch (e) {
+      grid.innerHTML = '<div style="color:#ff5555; padding:20px;">Erro de conexão ao carregar categoria.</div>';
+    }
+  }
+
+  async function carregarAbaFavoritos() {
+    await atualizarFavoritosMemoria();
+    renderizarGrid(listaFavoritos, usuarioLogado && usuarioLogado.iptv);
+  }
+
+  async function carregarAbaHistorico() {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '<div style="color:#aaa; padding:20px;">Carregando progresso...</div>';
+    if (!usuarioLogado) return;
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/progresso?userId=${encodeURIComponent(usuarioLogado.id)}`);
+      const hist = await res.json();
+      itensGerais = Array.isArray(hist) ? hist : [];
+      if (itensGerais.length === 0) {
+        grid.innerHTML = '<div style="color:#aaa; padding:20px;">Os filmes e episódios que você começar a assistir aparecerão aqui.</div>';
+        return;
+      }
+      renderizarGrid(itensGerais, usuarioLogado.iptv);
+    } catch(e) {
+      grid.innerHTML = '<div style="color:#ff5555; padding:20px;">Erro ao carregar progresso.</div>';
+    }
+  }
+
+  function renderizarGrid(lista, server) {
+    const grid = document.getElementById('contentGrid');
+    grid.innerHTML = '';
+
+    if (!lista || lista.length === 0) {
+      grid.innerHTML = '<div style="color:#aaa; padding:20px;">Nenhum item encontrado.</div>';
+      return;
+    }
+
+    const srv = server || (usuarioLogado && usuarioLogado.iptv) || {};
+
+    lista.forEach(item => {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'group');
+
+      const imgUrl = normalizarImagem(item.stream_icon || item.cover || '');
+      const itemId = item.stream_id || item.series_id || item.id;
+      const itemTipo = item.tipo || secaoAtual;
+      const name = String(item.name || item.title || 'Sem título');
+      const displayName = secaoAtual === 'continue' && item.tipo === 'series'
+        ? String(item.seriesTitle || name)
+        : name;
+
+      let streamUrl = item.streamUrl || '';
+      if (!streamUrl && srv.url) {
+        const activeBaseUrl = String(srv.url || '').replace(/\/$/, '');
+        const activeUser = srv.usuario;
+        const activePass = srv.senha;
+
+        if (itemTipo === 'live') {
+          streamUrl = `${activeBaseUrl}/live/${activeUser}/${activePass}/${itemId}.m3u8`;
+        } else if (itemTipo === 'vod') {
+          const extension = item.container_extension ? item.container_extension : 'mp4';
+          streamUrl = `${activeBaseUrl}/movie/${activeUser}/${activePass}/${itemId}.${extension}`;
+        }
+      }
+
+      const isFav = listaFavoritos.some(f => String(f.id) === String(itemId) && f.tipo === itemTipo);
+      const payloadFav = { id: itemId, name, stream_icon: imgUrl, streamUrl, tipo: itemTipo };
+      const image = document.createElement('img');
+      image.alt = '';
+      image.loading = 'lazy';
+      image.src = imgUrl;
+      image.onerror = () => {
+        image.onerror = null;
+        image.src = 'https://via.placeholder.com/400x600?text=Neguedri';
+      };
+      card.appendChild(image);
+
+      if (secaoAtual !== 'continue') {
+        const favBtn = document.createElement('button');
+        favBtn.type = 'button';
+        favBtn.className = 'fav-btn';
+        favBtn.textContent = isFav ? '★' : '☆';
+        favBtn.setAttribute('aria-label', isFav ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+        favBtn.onclick = event => {
+          event.stopPropagation();
+          toggleFavorito(payloadFav);
+        };
+        card.appendChild(favBtn);
+      }
+
+      const title = document.createElement('div');
+      title.className = 'card-title';
+      title.textContent = displayName;
+      card.appendChild(title);
+
+      if (secaoAtual === 'continue') {
+        const currentTime = Math.max(0, Number(item.currentTime) || 0);
+        const duration = Math.max(0, Number(item.duration) || 0);
+        const subtitle = document.createElement('div');
+        subtitle.className = 'card-subtitle';
+        subtitle.textContent = item.tipo === 'series'
+          ? `T${item.season || '1'} · Episódio ${item.episodeNumber || '1'} · ${formatarTempo(currentTime)}`
+          : `Retomar em ${formatarTempo(currentTime)}`;
+        card.appendChild(subtitle);
+
+        const track = document.createElement('div');
+        track.className = 'progress-track';
+        const fill = document.createElement('div');
+        fill.className = 'progress-fill';
+        fill.style.width = `${duration ? Math.min(100, currentTime / duration * 100) : 0}%`;
+        track.appendChild(fill);
+        card.appendChild(track);
+      }
+
+      card.onclick = () => {
+        if (secaoAtual === 'continue') retomarProgresso(item);
+        else if (itemTipo === 'series') abrirModalSeries(itemId, name);
+        else abrirPlayer(name, streamUrl, payloadFav);
+      };
+      card.onkeydown = event => {
+        if ((event.key === 'Enter' || event.key === ' ') && !event.target.closest('button')) {
+          event.preventDefault();
+          card.click();
+        }
+      };
+
+      grid.appendChild(card);
+    });
+  }
+
+  async function abrirModalSeries(seriesId, titulo) {
+    serieIdAtual = String(seriesId);
+    document.getElementById('seriesModalTitle').innerText = titulo;
+    document.getElementById('seasonsList').innerHTML = '<div style="padding:10px; color:#aaa;">Carregando...</div>';
+    document.getElementById('episodesList').innerHTML = '';
+    document.getElementById('seriesModal').classList.add('active');
+
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(usuarioLogado.id)}&action=get_series_info&series_id=${encodeURIComponent(seriesId)}`);
+      const json = await res.json();
+      dadosSerieAtual = json;
+      const episodiosObj = json.data && json.data.episodes || {};
+      const temporadasKeys = Object.keys(episodiosObj);
+      const seasonsList = document.getElementById('seasonsList');
+      seasonsList.innerHTML = '';
+
+      temporadasKeys.forEach((tempKey, idx) => {
+        const sBtn = document.createElement('button');
+        sBtn.type = 'button';
+        sBtn.className = 'season-item' + (idx === 0 ? ' active' : '');
+        sBtn.textContent = `Temporada ${tempKey}`;
+        sBtn.onclick = () => {
+          document.querySelectorAll('.season-item').forEach(s => s.classList.remove('active'));
+          sBtn.classList.add('active');
+          exibirEpisodiosTemporada(tempKey);
+        };
+        seasonsList.appendChild(sBtn);
+      });
+
+      if (temporadasKeys.length > 0) exibirEpisodiosTemporada(temporadasKeys[0]);
+    } catch(err) {
+      document.getElementById('seasonsList').innerHTML = '<div style="padding:10px; color:#ff5555;">Erro.</div>';
+    }
+  }
+
+  function exibirEpisodiosTemporada(tempKey) {
+    temporadaAtualKey = tempKey;
+    const episodesList = document.getElementById('episodesList');
+    episodesList.innerHTML = '';
+    const episodios = dadosSerieAtual && dadosSerieAtual.data && dadosSerieAtual.data.episodes[tempKey] || [];
+    const server = dadosSerieAtual && dadosSerieAtual.server;
+    const iptv = (usuarioLogado && usuarioLogado.iptv) || {};
+
+    episodios.forEach((ep, index) => {
+      const activeBaseUrl = ((server && server.baseUrl) || iptv.url || '').replace(/\/$/, '');
+      const activeUser = (server && server.usuario) || iptv.usuario;
+      const activePass = (server && server.senha) || iptv.senha;
+      const ext = ep.container_extension || 'mp4';
+      const streamUrl = `${activeBaseUrl}/series/${activeUser}/${activePass}/${ep.id}.${ext}`;
+      const epTitle = ep.title || `Ep ${ep.episode_num}`;
+
+      const card = document.createElement('div');
+      card.className = 'episode-card';
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      const info = document.createElement('div');
+      info.className = 'episode-info';
+      const heading = document.createElement('h5');
+      heading.textContent = `E${ep.episode_num || (index + 1)} - ${epTitle}`;
+      info.appendChild(heading);
+      const playButton = document.createElement('button');
+      playButton.type = 'button';
+      playButton.className = 'btn btn-red';
+      playButton.textContent = '▶';
+      card.append(info, playButton);
+      card.onclick = () => tocarEpisodio(tempKey, index);
+      card.onkeydown = event => {
+        if ((event.key === 'Enter' || event.key === ' ') && event.target === card) {
+          event.preventDefault();
+          card.click();
+        }
+      };
+      episodesList.appendChild(card);
+    });
+  }
+
+  function tocarEpisodio(tempKey, index) {
+    temporadaAtualKey = tempKey;
+    episodioAtualIndex = index;
+    const listaEpisodios = dadosSerieAtual.data.episodes[tempKey] || [];
+    const ep = listaEpisodios[index];
+    if (!ep) return;
+
+    const server = dadosSerieAtual.server;
+    const iptv = (usuarioLogado && usuarioLogado.iptv) || {};
+    const activeBaseUrl = ((server && server.baseUrl) || iptv.url || '').replace(/\/$/, '');
+    const activeUser = (server && server.usuario) || iptv.usuario;
+    const activePass = (server && server.senha) || iptv.senha;
+    const ext = ep.container_extension || 'mp4';
+    const streamUrl = `${activeBaseUrl}/series/${activeUser}/${activePass}/${ep.id}.${ext}`;
+    const serieNome = dadosSerieAtual.data.info && dadosSerieAtual.data.info.name || 'Série';
+    const numeroEpisodio = ep.episode_num || (index + 1);
+    const tituloCompleto = `${serieNome} S${tempKey}E${numeroEpisodio}`;
+    const playback = {
+      id: String(ep.id),
+      name: tituloCompleto,
+      streamUrl,
+      stream_icon: normalizarImagem(dadosSerieAtual.data.info && (dadosSerieAtual.data.info.cover || dadosSerieAtual.data.info.movie_image) || ''),
+      tipo: 'series',
+      seriesId: String(serieIdAtual || dadosSerieAtual.data.info && (dadosSerieAtual.data.info.series_id || dadosSerieAtual.data.info.id) || ep.id),
+      seriesTitle: serieNome,
+      season: String(tempKey),
+      episodeNumber: String(numeroEpisodio),
+      episodeIndex: index
+    };
+
+    abrirPlayer(tituloCompleto, streamUrl, playback, index + 1 < listaEpisodios.length);
+  }
+
+  async function tocarProximoEpisodio() {
+    if (itemProgressoAtual && !progressoConcluido) {
+      progressoConcluido = true;
+      await salvarProgressoAtual(true);
+    }
+    if (dadosSerieAtual && temporadaAtualKey && episodioAtualIndex >= 0) {
+      const listaEpisodios = dadosSerieAtual.data.episodes[temporadaAtualKey] || [];
+      if (episodioAtualIndex + 1 < listaEpisodios.length) tocarEpisodio(temporadaAtualKey, episodioAtualIndex + 1);
+    }
+  }
+
+  function fecharModalSeries() { document.getElementById('seriesModal').classList.remove('active'); }
+
+  async function toggleFavorito(item) {
+    if (!usuarioLogado) return;
+    try {
+      const res = await fetch(`${SERVER_ORIGIN}/api/favoritos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: usuarioLogado.id, item: item })
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        listaFavoritos = data.favoritos;
+        if (secaoAtual === 'favorites') carregarAbaFavoritos();
+        else renderizarGrid(itensGerais, usuarioLogado.iptv);
+      }
+    } catch(err) { console.error(err); }
+  }
+
+  async function registrarHistorico(item) {
+    if (!usuarioLogado || !item) return;
+    try {
+      await fetch(`${SERVER_ORIGIN}/api/historico`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: usuarioLogado.id, item: item })
+      });
+    } catch (e) {}
+  }
+
+  function formatarTempo(segundos) {
+    const total = Math.max(0, Math.floor(Number(segundos) || 0));
+    const horas = Math.floor(total / 3600);
+    const minutos = Math.floor((total % 3600) / 60);
+    const segundosRestantes = total % 60;
+    const doisDigitos = valor => String(valor).padStart(2, '0');
+    return horas
+      ? `${horas}:${doisDigitos(minutos)}:${doisDigitos(segundosRestantes)}`
+      : `${doisDigitos(minutos)}:${doisDigitos(segundosRestantes)}`;
+  }
+
+  async function salvarProgressoAtual(concluido = false, usarBeacon = false) {
+    const video = document.getElementById('videoPlayer');
+    if (!usuarioLogado || !itemProgressoAtual) return;
+
+    const currentTime = Number(video.currentTime);
+    if (!concluido && (!Number.isFinite(currentTime) || currentTime <= 0)) return;
+
+    const duration = Number(video.duration);
+    const item = {
+      ...itemProgressoAtual,
+      currentTime: Number.isFinite(currentTime) ? Math.max(0, currentTime) : 0,
+      duration: Number.isFinite(duration) ? Math.max(0, duration) : 0,
+      updatedAt: Date.now()
+    };
+    const payload = { userId: usuarioLogado.id, item, concluido };
+    const url = `${SERVER_ORIGIN}/api/progresso`;
+
+    if (usarBeacon && navigator.sendBeacon) {
+      const body = new Blob([JSON.stringify(payload)], { type: 'application/json' });
+      if (navigator.sendBeacon(url, body)) return;
+    }
+
+    const envio = gravacaoProgressoPendente.catch(() => {}).then(() => fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: usarBeacon
+      }));
+    gravacaoProgressoPendente = envio;
+    try {
+      await envio;
+      ultimaGravacaoProgresso = Date.now();
+    } catch (error) {
+      console.warn('Não foi possível salvar o progresso agora.');
+    }
+  }
+
+  function ehUrlHls(url) {
+    try {
+      return new URL(url, window.location.href).pathname.toLowerCase().endsWith('.m3u8');
+    } catch (error) {
+      return String(url || '').toLowerCase().includes('.m3u8');
+    }
+  }
+
+  function abrirPlayer(titulo, url, itemObj, podeTerProximo = false, retomarEm = 0) {
+    const modal = document.getElementById('playerModal');
+    const video = document.getElementById('videoPlayer');
+    const nextBtn = document.getElementById('nextEpBtn');
+    const statusBox = document.getElementById('playerStatus');
+
+    video.onpause = null;
+    video.onseeked = null;
+    video.ontimeupdate = null;
+    video.onended = null;
+    video.onloadedmetadata = null;
+    video.onerror = null;
+    video.onplaying = null;
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+
+    const tipo = itemObj && itemObj.tipo || secaoAtual;
+    itemProgressoAtual = itemObj && ['vod', 'series'].includes(tipo)
+      ? { ...itemObj, id: String(itemObj.id), name: titulo, streamUrl: url, tipo }
+      : null;
+    progressoConcluido = false;
+    ultimaGravacaoProgresso = 0;
+
+    nextBtn.style.display = 'none';
+    statusBox.textContent = `Carregando: ${titulo}`;
+    statusBox.style.display = 'block';
+    modal.classList.add('active');
+    if (itemObj) registrarHistorico(itemProgressoAtual || itemObj);
+
+    const urlProxy = construirUrlReproducao(url);
+    let tentouDireto = urlProxy === url;
+    const tempoRetomada = Math.max(0, Number(retomarEm || itemObj && itemObj.currentTime) || 0);
+    let posicaoRestaurada = tempoRetomada === 0;
+    let reproducaoIniciada = false;
+
+    function iniciarReproducao() {
+      if (!posicaoRestaurada && Number.isFinite(video.duration) && video.duration > 0) {
+        try {
+          video.currentTime = Math.min(tempoRetomada, Math.max(0, video.duration - 1));
+          posicaoRestaurada = true;
+        } catch (error) {}
+      }
+      if (!reproducaoIniciada) {
+        reproducaoIniciada = true;
+        const tentativa = video.play();
+        if (tentativa && tentativa.catch) {
+          tentativa.catch(() => {
+            statusBox.textContent = 'Toque na tela para iniciar o vídeo.';
+          });
+        }
+      }
+    }
+
+    video.onplaying = () => {
+      statusBox.style.display = 'none';
+    };
+
+    video.ontimeupdate = function() {
+      if (podeTerProximo && video.duration && (video.duration - video.currentTime <= 25)) {
+        nextBtn.style.display = 'block';
+      } else {
+        nextBtn.style.display = 'none';
+      }
+
+      if (itemProgressoAtual && !progressoConcluido && video.currentTime > 0 && Date.now() - ultimaGravacaoProgresso >= 8000) {
+        ultimaGravacaoProgresso = Date.now();
+        salvarProgressoAtual();
+      }
+    };
+
+    video.onpause = function() {
+      if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
+    };
+
+    video.onseeked = function() {
+      if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
+    };
+
+    video.onloadedmetadata = iniciarReproducao;
+    video.onended = async function() {
+      progressoConcluido = true;
+      await salvarProgressoAtual(true);
+      if (podeTerProximo) await tocarProximoEpisodio();
+    };
+
+    function carregarFonte(fonteUrl) {
+      if (ehUrlHls(url) && window.Hls && Hls.isSupported()) {
+        if (hls) hls.destroy();
+        hls = new Hls({
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          liveSyncDurationCount: 3
+        });
+        hls.loadSource(fonteUrl);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
+        hls.on(Hls.Events.ERROR, (event, data) => {
+          if (data.fatal && !tentouDireto) {
+            tentouDireto = true;
+            reproducaoIniciada = false;
+            carregarFonte(url);
+          } else if (data.fatal) {
+            statusBox.textContent = 'Não foi possível reproduzir este canal no momento.';
+          }
+        });
+      } else {
+        video.onerror = () => {
+          if (!tentouDireto) {
+            tentouDireto = true;
+            reproducaoIniciada = false;
+            carregarFonte(url);
+          } else {
+            statusBox.textContent = 'Formato de vídeo não suportado por este navegador.';
+          }
+        };
+        video.src = fonteUrl;
+        video.load();
+      }
+    }
+
+    carregarFonte(urlProxy);
+  }
+
+  function fecharPlayer() {
+    const modal = document.getElementById('playerModal');
+    const video = document.getElementById('videoPlayer');
+    if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
+    video.onpause = null;
+    video.onseeked = null;
+    video.ontimeupdate = null;
+    video.onended = null;
+    video.onloadedmetadata = null;
+    video.onerror = null;
+    video.onplaying = null;
+    video.pause();
+    video.removeAttribute('src');
+    video.load();
+    if (hls) hls.destroy();
+    hls = null;
+    itemProgressoAtual = null;
+    progressoConcluido = false;
+    modal.classList.remove('active');
+  }
+
+  async function retomarProgresso(item) {
+    if (!item) return;
+    let podeTerProximo = false;
+
+    if (item.tipo === 'series' && item.seriesId) {
+      try {
+        const res = await fetch(`${SERVER_ORIGIN}/api/iptv-proxy?userId=${encodeURIComponent(usuarioLogado.id)}&action=get_series_info&series_id=${encodeURIComponent(item.seriesId)}`);
+        const json = await res.json();
+        if (json.sucesso && json.data && json.data.episodes) {
+          dadosSerieAtual = json;
+          serieIdAtual = String(item.seriesId);
+          const temporadas = Object.keys(json.data.episodes);
+          temporadaAtualKey = temporadas.find(key => String(key) === String(item.season)) || String(item.season || temporadas[0] || '1');
+          const episodios = json.data.episodes[temporadaAtualKey] || [];
+          const indiceEncontrado = episodios.findIndex(ep => String(ep.id) === String(item.id));
+          episodioAtualIndex = indiceEncontrado >= 0 ? indiceEncontrado : Number(item.episodeIndex) || 0;
+          podeTerProximo = episodioAtualIndex + 1 < episodios.length;
+        }
+      } catch (error) {
+        console.warn('Os dados do próximo episódio não estão disponíveis agora.');
+      }
+    }
+
+    const titulo = item.name || item.seriesTitle || 'Continuar assistindo';
+    abrirPlayer(titulo, item.streamUrl, item, podeTerProximo, item.currentTime);
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden' && itemProgressoAtual && !progressoConcluido) salvarProgressoAtual(false, true);
+  });
+  window.addEventListener('pagehide', () => {
+    if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual(false, true);
+  });
+
+  function filtrarItens() {
+    if (!usuarioLogado || secaoAtual === 'about' || secaoAtual === 'manager') return;
+    const termo = document.getElementById('searchInput').value.toLowerCase();
+    const serverObj = usuarioLogado.iptv;
+    if (!termo) {
+      renderizarGrid(itensGerais.slice(0, 100), serverObj);
+      return;
+    }
+    const filtrados = itensGerais.filter(i => String(i.name || i.title || '').toLowerCase().includes(termo));
+    renderizarGrid(filtrados.slice(0, 100), serverObj);
+  }
+
+  // Restaura sessão se já estiver logado e valida vencimento
+  (async function restaurarSessao() {
+    const salva = localStorage.getItem('neguedri_sessao');
+    if (!salva) return;
+    try {
+      const parsed = JSON.parse(salva);
+      if (parsed && parsed.role === 'admin') {
+        iniciarSessao(parsed);
+        return;
+      }
+      if (parsed && parsed.id) {
+        const res = await fetch(`${SERVER_ORIGIN}/api/auth/status?userId=${encodeURIComponent(parsed.id)}`);
+        const st = await res.json();
+        if (st.vencido) {
+          exibirTelaVencimento();
+          return;
+        }
+        iniciarSessao({ ...parsed, diasRestantes: st.diasRestantes });
+      }
+    } catch (_) {}
+  })();
+</script>
+</body>
+</html>
