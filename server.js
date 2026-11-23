@@ -557,6 +557,9 @@ app.get('/api/stream-proxy', async (req, res) => {
         }));
         return viaDominio;
       }
+      if (destino.host !== baseUrl.host) {
+        throw new Error('O servidor IPTV redirecionou para um domínio externo não autorizado.');
+      }
       return destino;
     };
 
