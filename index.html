@@ -155,11 +155,6 @@
       letter-spacing: 0.4px;
       margin-bottom: 3px;
     }
-    .pix-owner {
-      font-size: 12px;
-      color: #ffb8be;
-      font-weight: 600;
-    }
     .receipt-row {
       display: flex;
       align-items: center;
@@ -1090,6 +1085,27 @@
     return urlOriginal;
   }
 
+  function gerarCandidatosUrl(urlOriginal, tipo = '') {
+    if (!urlOriginal) return [];
+    const lista = [String(urlOriginal)];
+
+    if (tipo === 'live') {
+      if (urlOriginal.endsWith('.m3u8')) {
+        lista.push(urlOriginal.replace(/\.m3u8(\?.*)?$/, '.ts$1'));
+      } else if (urlOriginal.endsWith('.ts')) {
+        lista.push(urlOriginal.replace(/\.ts(\?.*)?$/, '.m3u8$1'));
+      }
+    } else if (tipo === 'vod' || tipo === 'series') {
+      if (urlOriginal.endsWith('.mkv')) {
+        lista.push(urlOriginal.replace(/\.mkv(\?.*)?$/, '.mp4$1'));
+      } else if (urlOriginal.endsWith('.mp4')) {
+        lista.push(urlOriginal.replace(/\.mp4(\?.*)?$/, '.mkv$1'));
+      }
+    }
+
+    return [...new Set(lista)];
+  }
+
   function resetarParaInicio() {
     const primeiroMenu = document.querySelector('.menu-item');
     switchSection('live', primeiroMenu);
@@ -1571,7 +1587,10 @@
 
   function ehUrlHls(url) {
     try {
-      return new URL(url, window.location.href).pathname.toLowerCase().endsWith('.m3u8');
+      const parsed = new URL(url, window.location.href);
+      const targetParam = parsed.searchParams.get('url');
+      const caminho = targetParam ? new URL(targetParam, window.location.href).pathname : parsed.pathname;
+      return caminho.toLowerCase().endsWith('.m3u8');
     } catch (error) {
       return String(url || '').toLowerCase().includes('.m3u8');
     }
@@ -1598,7 +1617,7 @@
     video.removeAttribute('src');
     video.load();
 
-    const tipo = itemObj && itemObj.tipo || secaoAtual;
+    const tipo = (itemObj && itemObj.tipo) || secaoAtual;
     itemProgressoAtual = itemObj && ['vod', 'series'].includes(tipo)
       ? { ...itemObj, id: String(itemObj.id), name: titulo, streamUrl: url, tipo }
       : null;
@@ -1611,9 +1630,19 @@
     modal.classList.add('active');
     if (itemObj) registrarHistorico(itemProgressoAtual || itemObj);
 
-    const urlProxy = construirUrlReproducao(url);
-    let tentouDireto = urlProxy === url;
-    const tempoRetomada = Math.max(0, Number(retomarEm || itemObj && itemObj.currentTime) || 0);
+    const candidatosOriginais = gerarCandidatosUrl(url, tipo);
+    const filaFontes = [];
+
+    candidatosOriginais.forEach((rawUrl) => {
+      const proxied = construirUrlReproducao(rawUrl);
+      filaFontes.push({ rawUrl, fonteUrl: proxied });
+      if (proxied !== rawUrl) {
+        filaFontes.push({ rawUrl, fonteUrl: rawUrl });
+      }
+    });
+
+    let indiceFonte = 0;
+    const tempoRetomada = Math.max(0, Number(retomarEm || (itemObj && itemObj.currentTime)) || 0);
     let posicaoRestaurada = tempoRetomada === 0;
     let reproducaoIniciada = false;
 
@@ -1632,6 +1661,16 @@
             statusBox.textContent = 'Toque na tela para iniciar o vídeo.';
           });
         }
+      }
+    }
+
+    function tentarProximaFonte() {
+      indiceFonte += 1;
+      reproducaoIniciada = false;
+      if (indiceFonte < filaFontes.length) {
+        carregarEntrada(filaFontes[indiceFonte]);
+      } else {
+        statusBox.textContent = 'Formato de vídeo não suportado por este navegador.';
       }
     }
 
@@ -1667,42 +1706,38 @@
       if (podeTerProximo) await tocarProximoEpisodio();
     };
 
-    function carregarFonte(fonteUrl) {
-      if (ehUrlHls(url) && window.Hls && Hls.isSupported()) {
-        if (hls) hls.destroy();
+    function carregarEntrada(entrada) {
+      if (hls) {
+        hls.destroy();
+        hls = null;
+      }
+
+      if (ehUrlHls(entrada.rawUrl) && window.Hls && Hls.isSupported()) {
         hls = new Hls({
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
           liveSyncDurationCount: 3
         });
-        hls.loadSource(fonteUrl);
+        hls.loadSource(entrada.fonteUrl);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
         hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal && !tentouDireto) {
-            tentouDireto = true;
-            reproducaoIniciada = false;
-            carregarFonte(url);
-          } else if (data.fatal) {
-            statusBox.textContent = 'Não foi possível reproduzir este canal no momento.';
+          if (data.fatal) {
+            tentarProximaFonte();
           }
         });
       } else {
         video.onerror = () => {
-          if (!tentouDireto) {
-            tentouDireto = true;
-            reproducaoIniciada = false;
-            carregarFonte(url);
-          } else {
-            statusBox.textContent = 'Formato de vídeo não suportado por este navegador.';
-          }
+          tentarProximaFonte();
         };
-        video.src = fonteUrl;
+        video.src = entrada.fonteUrl;
         video.load();
       }
     }
 
-    carregarFonte(urlProxy);
+    if (filaFontes.length > 0) {
+      carregarEntrada(filaFontes[0]);
+    }
   }
 
   function fecharPlayer() {
