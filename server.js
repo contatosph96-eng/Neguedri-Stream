@@ -15,7 +15,7 @@ const HIST_PATH = path.join(__dirname, 'historico.json');
 const PROGRESS_PATH = path.join(__dirname, 'progresso.json');
 
 const ADMIN_USER = process.env.ADMIN_USER || 'Neguedri';
-const ADMIN_PASS = process.env.ADMIN_PASS || '';
+const ADMIN_PASS = String(process.env.ADMIN_PASS || '281219').trim();
 const UM_MES_MS = 30 * 24 * 60 * 60 * 1000;
 
 app.use(express.urlencoded({ extended: true }));
