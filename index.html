@@ -1635,13 +1635,18 @@
 
     const candidatosOriginais = gerarCandidatosUrl(url, tipo);
     const filaFontes = [];
-
-    candidatosOriginais.forEach((rawUrl) => {
-      const fonteProxy = construirUrlReproducao(rawUrl);
-      filaFontes.push({ rawUrl, fonteUrl: fonteProxy });
-      if (fonteProxy !== rawUrl) {
-        filaFontes.push({ rawUrl, fonteUrl: rawUrl });
+    function adicionarFonte(rawUrl, fonteUrl) {
+      if (ehUrlHls(rawUrl) && window.Hls && Hls.isSupported()) {
+        filaFontes.push({ fonteUrl, usarHls: true });
       }
+      if (!ehUrlHls(rawUrl) || video.canPlayType('application/vnd.apple.mpegurl')) {
+        filaFontes.push({ fonteUrl, usarHls: false });
+      }
+    }
+    candidatosOriginais.forEach(rawUrl => {
+      const proxy = construirUrlReproducao(rawUrl);
+      adicionarFonte(rawUrl, proxy);
+      if (proxy !== rawUrl && new URL(rawUrl).protocol === 'https:') adicionarFonte(rawUrl, rawUrl);
     });
 
     let indiceFonte = 0;
@@ -1724,25 +1729,29 @@
         hls = null;
       }
 
-      const hlsNativoDisponivel = Boolean(video.canPlayType('application/vnd.apple.mpegurl'));
-      if (ehUrlHls(entrada.rawUrl) && window.Hls && Hls.isSupported() && !hlsNativoDisponivel) {
+      video.onerror = null;
+      if (entrada.usarHls) {
         hls = new Hls({
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
           liveSyncDurationCount: 3
         });
-        hls.loadSource(entrada.fonteUrl);
-        hls.attachMedia(video);
-        iniciarReproducao();
-        hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            if (data.response && data.response.code) {
-              ultimoErroRede = data.response.code;
-            }
-            tentarProximaFonte();
+        const instancia = hls;
+        instancia.on(Hls.Events.MEDIA_ATTACHED, () => instancia.loadSource(entrada.fonteUrl));
+        instancia.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
+        instancia.on(Hls.Events.ERROR, (event, data) => {
+          if (!data.fatal || instancia !== hls) return;
+          const status = data.response?.code;
+          if (status === 401 || status === 403) {
+            instancia.destroy();
+            hls = null;
+            statusBox.textContent = 'O servidor de vídeo recusou esta transmissão (HTTP ' + status + ').';
+            statusBox.style.display = 'block';
+            return;
           }
+          tentarProximaFonte();
         });
+        instancia.attachMedia(video);
       } else {
         video.onerror = () => {
           tentarProximaFonte();
@@ -1755,6 +1764,8 @@
 
     if (filaFontes.length > 0) {
       carregarEntrada(filaFontes[0]);
+    } else {
+      statusBox.textContent = "Este navegador não consegue abrir o formato deste vídeo.";
     }
   }
 
