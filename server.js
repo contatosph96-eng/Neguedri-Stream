@@ -549,16 +549,37 @@ app.get('/api/stream-proxy', async (req, res) => {
 
     const contentType = upstream.headers.get('content-type') || '';
 
-    if (targetUrl.pathname.endsWith('.m3u8') || contentType.includes('mpegurl')) {
-      const playlistText = await upstream.text();
-      const basePath = targetUrl.href.substring(0, targetUrl.href.lastIndexOf('/') + 1);
+    if (targetUrl.pathname.toLowerCase().endsWith('.m3u8') || contentType.toLowerCase().includes('mpegurl')) {
+      const playlistText = (await upstream.text()).replace(/^\uFEFF/, '');
+      if (!playlistText.trimStart().startsWith('#EXTM3U')) {
+        console.warn('Stream proxy recebeu uma resposta que não é uma playlist HLS:', {
+          host: targetUrl.host,
+          tipo: contentType || 'desconhecido',
+          bytes: Buffer.byteLength(playlistText)
+        });
+        return res.status(502).send('Resposta de playlist inválida.');
+      }
+
+      const urlDoProxy = uri => {
+        try {
+          const recurso = new URL(uri, targetUrl);
+          if (!['http:', 'https:'].includes(recurso.protocol)) return uri;
+          return '/api/stream-proxy?url=' + encodeURIComponent(recurso.toString());
+        } catch (error) {
+          return uri;
+        }
+      };
+
       const rewritten = playlistText
-        .split('\n')
+        .split(/\r?\n/)
         .map(line => {
           const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) return line;
-          const absoluteSegment = trimmed.startsWith('http') ? trimmed : new URL(trimmed, basePath).toString();
-          return `/api/stream-proxy?url=${encodeURIComponent(absoluteSegment)}`;
+          if (!trimmed) return line;
+          if (!trimmed.startsWith('#')) return urlDoProxy(trimmed);
+          return line.replace(/URI="([^"]+)"/g, (match, uri) => {
+            const proxied = urlDoProxy(uri);
+            return proxied === uri ? match : 'URI="' + proxied + '"';
+          });
         })
         .join('\n');
 
@@ -566,7 +587,6 @@ app.get('/api/stream-proxy', async (req, res) => {
       res.setHeader('Cache-Control', 'no-cache');
       return res.send(rewritten);
     }
-
     res.status(upstream.status);
     ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
       const val = upstream.headers.get(h);
