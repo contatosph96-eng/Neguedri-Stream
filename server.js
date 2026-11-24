@@ -771,6 +771,34 @@ app.get('/api/stream-proxy', async (req, res) => {
     const isPlaylist = /\.m3u8(?:$|[?#])/i.test(targetUrl.pathname)
       || contentType.includes('mpegurl')
       || contentType.includes('x-mpegurl');
+    const isDashManifest = /\.mpd(?:$|[?#])/i.test(targetUrl.pathname)
+      || contentType.includes('application/dash+xml');
+
+    if (isDashManifest) {
+      let manifest = await upstream.text();
+      // Reescreve URLs de BaseURL e segmentos para que todo o manifesto
+      // continue passando pelo proxy, inclusive quando há CDN externa assinada.
+      const rewriteDashUrl = (value) => {
+        const trimmed = String(value || '').trim();
+        if (!trimmed || /^(data:|urn:)/i.test(trimmed) || trimmed.includes('://')) {
+          try {
+            if (/^https?:\/\//i.test(trimmed)) return criarUrlProxy(trimmed, finalUrl);
+          } catch (_) {}
+          return value;
+        }
+        try { return criarUrlProxy(trimmed, finalUrl); }
+        catch (_) { return value; }
+      };
+      manifest = manifest.replace(/(<BaseURL(?:\\s[^>]*)?>)([\\s\\S]*?)(<\\/BaseURL>)/gi,
+        (match, open, value, close) => open + rewriteDashUrl(value) + close);
+      manifest = manifest.replace(/\\b(media|initialization|sourceURL)=(["'])(.*?)\\2/gi,
+        (match, attr, quote, value) => attr + '=' + quote + rewriteDashUrl(value) + quote);
+      res.status(200);
+      res.setHeader('Content-Type', 'application/dash+xml; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+      res.setHeader('Access-Control-Allow-Origin', '*');
+      return res.send(manifest);
+    }
 
     if (isPlaylist) {
       const playlistText = await upstream.text();
