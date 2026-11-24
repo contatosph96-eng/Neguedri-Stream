@@ -587,6 +587,45 @@
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
     }
 
+    /* Acabamento visual: navegação e catálogo no estilo de players premium */
+    .card { overflow: hidden; }
+    .card::after {
+      content: "▶";
+      position: absolute;
+      left: 50%;
+      top: 42%;
+      display: grid;
+      width: 48px;
+      height: 48px;
+      place-items: center;
+      padding-left: 3px;
+      border: 1px solid #ffffffa8;
+      border-radius: 50%;
+      background: #0b0c10b8;
+      color: #fff;
+      font-size: 18px;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -42%) scale(.88);
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .card:hover::after, .card:focus-visible::after {
+      opacity: 1;
+      transform: translate(-50%, -42%) scale(1);
+    }
+    .category-item { border-radius: 9px; margin: 3px 5px; }
+    .category-item.active { color: #fff; }
+    .menu-item:focus-visible, .btn:focus-visible, .category-item:focus-visible,
+    .search-bar:focus-visible, .fav-btn:focus-visible {
+      outline: 2px solid #ff5963;
+      outline-offset: 2px;
+    }
+    .topbar-heading { min-width: 0; }
+    .user-badge { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    @media (max-width: 700px) {
+      .card::after { display: none; }
+      .category-item { margin: 2px 3px; }
+    }
   </style>
 </head>
 <body>
