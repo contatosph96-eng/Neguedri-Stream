@@ -2024,6 +2024,14 @@
     video.load();
     if (hls) hls.destroy();
     hls = null;
+    if (window.dashPlayer) {
+      try { window.dashPlayer.reset(); } catch (_) {}
+      window.dashPlayer = null;
+    }
+    if (window.mpegtsPlayer) {
+      try { window.mpegtsPlayer.pause(); window.mpegtsPlayer.unload(); window.mpegtsPlayer.detachMediaElement(); window.mpegtsPlayer.destroy(); } catch (_) {}
+      window.mpegtsPlayer = null;
+    }
     itemProgressoAtual = null;
     progressoConcluido = false;
     modal.classList.remove('active');
