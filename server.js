@@ -664,12 +664,21 @@ app.get('/api/stream-proxy', async (req, res) => {
           path: atual.pathname
         }));
 
-        const resposta = await fetch(atual.toString(), {
-          method: 'GET',
-          headers,
-          redirect: 'manual',
-          signal: AbortSignal.timeout(25000)
-        });
+        // O timeout protege apenas a conexão inicial até os cabeçalhos.
+        // Não deve abortar o corpo, pois filmes podem durar horas.
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        let resposta;
+        try {
+          resposta = await fetch(atual.toString(), {
+            method: 'GET',
+            headers,
+            redirect: 'manual',
+            signal: controller.signal
+          });
+        } finally {
+          clearTimeout(timeoutId);
+        }
 
         const redirecionamentos = [301, 302, 303, 307, 308];
         if (!redirecionamentos.includes(resposta.status)) {
