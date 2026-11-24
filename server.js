@@ -789,9 +789,9 @@ app.get('/api/stream-proxy', async (req, res) => {
         try { return criarUrlProxy(trimmed, finalUrl); }
         catch (_) { return value; }
       };
-      manifest = manifest.replace(/(<BaseURL(?:\\s[^>]*)?>)([\\s\\S]*?)(<\\/BaseURL>)/gi,
+      manifest = manifest.replace(/(<BaseURL(?:\s[^>]*)?>)([\s\S]*?)(<\/BaseURL>)/gi,
         (match, open, value, close) => open + rewriteDashUrl(value) + close);
-      manifest = manifest.replace(/\\b(media|initialization|sourceURL)=(["'])(.*?)\\2/gi,
+      manifest = manifest.replace(/\b(media|initialization|sourceURL)=(["'])(.*?)\2/gi,
         (match, attr, quote, value) => attr + '=' + quote + rewriteDashUrl(value) + quote);
       res.status(200);
       res.setHeader('Content-Type', 'application/dash+xml; charset=utf-8');
