@@ -1,3 +1,8 @@
+if (process.env.IS_PULL_REQUEST === 'true') {
+  require('./verificar-vod.cjs');
+  return;
+}
+
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
