@@ -197,6 +197,11 @@ function exigirAdmin(req, res, next) {
   return next();
 }
 
+app.get('/healthz', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.status(200).json({ status: 'ok', service: 'Neguedri Stream' });
+});
+
 app.get(['/', '/index.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
