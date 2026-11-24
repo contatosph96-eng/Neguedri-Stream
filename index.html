@@ -455,6 +455,138 @@
       .seasons-list { display: flex; width: 100%; height: 54px; flex: 0 0 54px; flex-direction: row; overflow-x: auto; overflow-y: hidden; border: 0; border-bottom: 1px solid #30313f; }
       .season-item { display: flex; align-items: center; min-height: 48px; flex: 0 0 auto; padding: 10px 14px; white-space: nowrap; }
     }
+
+    /* ===== Redesign Neguedri Stream: experiência inspirada em players premium ===== */
+    :root {
+      --accent: #e50914;
+      --accent-strong: #ff2633;
+      --bg-main: #0b0c10;
+      --surface: #15171e;
+      --surface-raised: #1c1f28;
+      --line: #292d38;
+      --muted: #a7adba;
+    }
+    body { background: var(--bg-main); }
+    .sidebar {
+      background: linear-gradient(180deg, #171922 0%, #101116 100%);
+      border-right: 1px solid #292d38;
+      box-shadow: 12px 0 35px #0002;
+    }
+    .sidebar-header {
+      position: relative;
+      background: radial-gradient(ellipse at center, #30313b 0%, #171922 72%);
+      border-bottom-color: var(--line);
+    }
+    .sidebar-header img { filter: drop-shadow(0 8px 18px #0008); }
+    .menu { padding: 20px 12px; gap: 8px; }
+    .menu-item { min-height: 50px; font-weight: 650; letter-spacing: .1px; }
+    .menu-item.active {
+      background: linear-gradient(90deg, #e5091429, #e5091408);
+      border-color: #e5091438;
+      border-left-color: var(--accent);
+      box-shadow: inset 0 0 18px #e509140b;
+    }
+    .main-content { background: radial-gradient(ellipse at 50% -25%, #27202a 0%, #101116 48%); }
+    .top-bar {
+      position: relative;
+      z-index: 4;
+      background: #12141beF;
+      border-bottom: 1px solid #2b2e39;
+      box-shadow: 0 8px 28px #0002;
+      backdrop-filter: blur(18px);
+    }
+    #sectionTitle { font-size: 21px !important; font-weight: 800; }
+    .user-badge { color: #8f97a7; }
+    .search-bar {
+      background: #20232d;
+      border: 1px solid #343846;
+      border-radius: 12px;
+      transition: border-color .2s, box-shadow .2s, background .2s;
+    }
+    .search-bar:focus { outline: none; border-color: #e50914; background: #252833; box-shadow: 0 0 0 3px #e5091424; }
+    .toolbar-actions .btn { border-radius: 11px; transition: transform .18s, filter .18s, background .18s; }
+    .toolbar-actions .btn:hover { filter: brightness(1.13); transform: translateY(-1px); }
+    .btn-red { background: linear-gradient(135deg, #f21a27, #bd0710); box-shadow: 0 6px 18px #e509142b; }
+    .btn-manager { background: linear-gradient(135deg, #315fc5, #24428c); }
+    .content-grid-wrapper { padding: clamp(14px, 2.2vw, 30px); scrollbar-color: #3b3e4a transparent; }
+    .content-grid { grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: clamp(12px, 1.5vw, 20px); }
+    .card {
+      background: linear-gradient(180deg, #1a1c25, #12141a);
+      border: 1px solid #2b2e39;
+      border-radius: 15px;
+      box-shadow: 0 8px 22px #0002;
+      isolation: isolate;
+    }
+    .card img { aspect-ratio: 2 / 3; height: auto; min-height: 190px; object-fit: cover; transition: transform .35s ease, filter .35s ease; }
+    .card:hover img { transform: scale(1.035); filter: saturate(1.08); }
+    .card-title { padding: 12px 12px 6px; font-size: 13px; font-weight: 700; letter-spacing: .05px; }
+    .card-subtitle { padding: 0 12px 12px; color: #939baa; }
+    .fav-btn { border: 1px solid #ffffff24; backdrop-filter: blur(8px); }
+    .progress-track { background: #3a3d48; }
+    .progress-fill { background: linear-gradient(90deg, #e50914, #ff5963); }
+    .categories-list { background: #11131a; border-right-color: #292d38; scrollbar-color: #3b3e4a transparent; }
+    .category-item { transition: background .18s, color .18s; }
+    .category-item:hover, .category-item.active { background: #242833; color: #fff; }
+    .category-item.active { box-shadow: inset 3px 0 #e50914; }
+    .category-item.all-category { color: #ff5963; }
+    .manager-header, .manager-table-wrap, .about-detail {
+      background: linear-gradient(145deg, #1b1e27, #14161d);
+      border-color: #303441;
+      border-radius: 16px;
+      box-shadow: 0 12px 30px #0002;
+    }
+    table.users-table th { background: #222631; color: #d6dae3; }
+    table.users-table td { color: #c4c9d3; }
+    table.users-table tr:hover td { background: #ffffff06; }
+    .series-box { background: #15171e; border-color: #343744; box-shadow: 0 25px 80px #000b; }
+    .series-header { background: #20232d; }
+    .episode-card { background: #20232d; border-color: #343846; }
+    .episode-card:hover { background: #282c38; }
+    .auth-screen { background: radial-gradient(ellipse at 50% 0%, #50151d 0%, #191117 35%, #090a0e 78%); }
+    .auth-card {
+      max-width: 420px;
+      padding: 34px 30px;
+      border: 1px solid #ffffff18;
+      border-radius: 24px;
+      background: linear-gradient(150deg, #20212bF2, #12131af5);
+      box-shadow: 0 30px 90px #000a, inset 0 1px #ffffff0b;
+      backdrop-filter: blur(20px);
+    }
+    .auth-logo { width: 96px; height: 96px; border: 1px solid #ffffff26; border-radius: 24px; box-shadow: 0 12px 32px #0007; }
+    .auth-title { font-size: 25px; letter-spacing: -.5px; }
+    .auth-subtitle { color: #aeb3c0; line-height: 1.5; }
+    .auth-card .form-group { margin-bottom: 16px; }
+    .auth-card .form-group input { min-height: 48px; border-radius: 11px; background: #10121a; border-color: #353947; }
+    .auth-card .form-group input:focus { outline: none; border-color: #e50914; box-shadow: 0 0 0 3px #e5091424; }
+    .auth-card .btn-red { min-height: 48px !important; border-radius: 12px; font-size: 14px !important; }
+    .player-modal { background: #000; }
+    .close-player, .next-ep-btn { border-radius: 12px; box-shadow: 0 8px 24px #0007; }
+    .expired-card { border-radius: 22px; box-shadow: 0 28px 80px #0009; }
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-thumb { background: #3a3e4a; border-radius: 20px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    @media (min-width: 1200px) {
+      .content-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    }
+    @media (max-width: 700px) {
+      .main-content { background: #0d0f14; }
+      .top-bar { background: #12141bf5; }
+      .content-grid-wrapper { padding: 14px 12px 22px; }
+      .content-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+      .card { border-radius: 12px; }
+      .card img { min-height: 0; height: auto; aspect-ratio: 2 / 3; }
+      .card-title { font-size: 12px; padding: 9px 9px 5px; }
+      .card-subtitle { padding: 0 9px 9px; font-size: 11px; }
+      .fav-btn { width: 34px; height: 34px; }
+      .auth-card { padding: 28px 22px; border-radius: 20px; }
+      .manager-header { align-items: stretch; }
+      .manager-header .btn { min-height: 44px; }
+      .manager-table-wrap { border-radius: 12px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
+    }
+
   </style>
 </head>
 <body>
