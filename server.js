@@ -180,6 +180,18 @@ app.get(['/', '/index.html'], (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Diagnóstico seguro da configuração de autenticação (não revela senhas).
+app.get('/api/auth/diagnostico', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  return res.json({
+    sucesso: true,
+    usuarioPrincipal: ADMIN_USER,
+    senhaConfigurada: Boolean(ADMIN_PASS),
+    origemSenha: process.env.ADMIN_PASS ? 'variavel ADMIN_PASS do Render' : 'senha padrão do código',
+    variavelAdminPassDefinida: Boolean(process.env.ADMIN_PASS)
+  });
+});
+
 // Login do sistema (Principal ou Usuário criado no Gerenciador)
 app.post('/api/auth/login', (req, res) => {
   const usuarioDigitado = String(req.body.usuario || '').trim();
