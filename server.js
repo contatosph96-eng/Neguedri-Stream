@@ -707,7 +707,7 @@ app.get('/api/stream-proxy', async (req, res) => {
           if (trimmed.startsWith('#')) {
             return line.replace(/URI="([^"]+)"/gi, (match, uri) => {
               try {
-                return 'URI="' + criarUrlProxy(uri) + '"';
+                return 'URI="' + criarUrlProxy(uri, playlistBase) + '"';
               } catch (error) {
                 console.warn('URI HLS ignorada:', error.message);
                 return match;
