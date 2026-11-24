@@ -525,8 +525,82 @@ app.get('/api/stream-proxy', async (req, res) => {
     return res.status(400).send('URL malformada.');
   }
 
-  if (!['http:', 'https:'].includes(targetUrl.protocol) || targetUrl.host !== baseUrl.host) {
-    return res.status(403).send('Domínio não autorizado.');
+  const crypto = require('crypto');
+  const dns = require('dns').promises;
+
+  const chaveProxy = () => process.env.STREAM_PROXY_SECRET || principal.senha;
+
+  const assinaturaValida = (url, assinatura) => {
+    if (!assinatura || !/^[a-f0-9]{64}$/i.test(String(assinatura))) return false;
+    const esperada = crypto.createHmac('sha256', chaveProxy()).update(url.toString()).digest();
+    const recebida = Buffer.from(String(assinatura), 'hex');
+    return recebida.length === esperada.length && crypto.timingSafeEqual(recebida, esperada);
+  };
+
+  const ipv4Publico = (ip) => {
+    const p = ip.split('.').map(Number);
+    if (p.length !== 4 || p.some(n => !Number.isInteger(n) || n < 0 || n > 255)) return false;
+    const [a, b] = p;
+    return !(a === 0 || a === 10 || a === 127 || a >= 224
+      || (a === 100 && b >= 64 && b <= 127)
+      || (a === 169 && b === 254)
+      || (a === 172 && b >= 16 && b <= 31)
+      || (a === 192 && b === 168)
+      || (a === 192 && b === 0)
+      || (a === 198 && (b === 18 || b === 19)));
+  };
+
+  const ipPublico = (ip) => {
+    const versao = net.isIP(ip);
+    if (versao === 4) return ipv4Publico(ip);
+    if (versao === 6) {
+      const normalizado = ip.toLowerCase();
+      if (normalizado === '::' || normalizado === '::1'
+        || normalizado.startsWith('fc') || normalizado.startsWith('fd')
+        || normalizado.startsWith('fe8') || normalizado.startsWith('fe9')
+        || normalizado.startsWith('fea') || normalizado.startsWith('feb')
+        || normalizado.startsWith('ff')) return false;
+      const mapeado = normalizado.match(/^::ffff:(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
+      return mapeado ? ipv4Publico(mapeado[1]) : true;
+    }
+    return false;
+  };
+
+  const validarDestinoPublico = async (destino) => {
+    if (!['http:', 'https:'].includes(destino.protocol)
+      || destino.username || destino.password
+      || !destino.hostname || destino.hostname === 'localhost'
+      || destino.hostname.endsWith('.localhost') || destino.hostname.endsWith('.local')) {
+      throw new Error('Destino externo inválido ou não permitido.');
+    }
+
+    const hostname = destino.hostname.replace(/^\\[|\\]$/g, '');
+    if (net.isIP(hostname)) {
+      if (!ipPublico(hostname)) throw new Error('Destino externo com endereço IP privado ou reservado.');
+      return;
+    }
+
+    const enderecos = await dns.lookup(hostname, { all: true, verbatim: true });
+    if (!enderecos.length || enderecos.some(item => !ipPublico(item.address))) {
+      throw new Error('O domínio externo resolve para endereço privado ou não público.');
+    }
+  };
+
+  if (!['http:', 'https:'].includes(targetUrl.protocol)) {
+    return res.status(403).send('Protocolo não autorizado.');
+  }
+
+  // URLs do provedor podem começar no domínio configurado. Recursos de CDN
+  // externos só são aceitos quando assinados pelo próprio servidor.
+  if (targetUrl.host !== baseUrl.host) {
+    if (!assinaturaValida(targetUrl, req.query.sig)) {
+      return res.status(403).send('Destino externo não autorizado.');
+    }
+    try {
+      await validarDestinoPublico(targetUrl);
+    } catch (error) {
+      return res.status(403).send('Destino externo bloqueado por segurança.');
+    }
   }
 
   try {
@@ -536,38 +610,19 @@ app.get('/api/stream-proxy', async (req, res) => {
     };
     if (req.headers.range) headers.Range = req.headers.range;
 
-    // Alguns provedores redirecionam o domínio HTTPS para o IP direto da origem
-    // (frequentemente em HTTP/80). No Render, esse IP pode não ser alcançável.
-    // Quando o destino do redirect for um IP, preservamos o host público configurado
-    // e mantemos o caminho/query do recurso, permitindo que o proxy/CDN do domínio
-    // continue tratando a requisição.
-    const normalizarDestinoRedirect = (candidate) => {
+    const normalizarDestinoRedirect = async (candidate) => {
       const destino = candidate instanceof URL ? candidate : new URL(candidate);
-      const hostname = destino.hostname.replace(/^\\[|\\]$/g, '');
-      if (net.isIP(hostname) && !net.isIP(baseUrl.hostname)) {
-        const viaDominio = new URL(baseUrl.origin);
-        viaDominio.pathname = destino.pathname;
-        viaDominio.search = destino.search;
-        viaDominio.hash = destino.hash;
-        console.warn('[STREAM-REDIRECT-IP]', JSON.stringify({
-          ipProtocol: destino.protocol,
-          ipPort: destino.port || '(padrão)',
-          proxyHost: baseUrl.host,
-          action: 'reutilizar-host-publico'
-        }));
-        return viaDominio;
-      }
       if (destino.host !== baseUrl.host) {
-        throw new Error('O servidor IPTV redirecionou para um domínio externo não autorizado.');
+        await validarDestinoPublico(destino);
       }
       return destino;
     };
 
     const buscarUpstream = async (initialUrl) => {
-      let atual = normalizarDestinoRedirect(initialUrl);
+      let atual = await normalizarDestinoRedirect(initialUrl);
       const visitadas = new Set();
 
-      for (let tentativa = 0; tentativa < 6; tentativa++) {
+      for (let tentativa = 0; tentativa < 8; tentativa++) {
         if (visitadas.has(atual.toString())) {
           throw new Error('Ciclo de redirecionamento detectado no servidor IPTV.');
         }
@@ -581,30 +636,41 @@ app.get('/api/stream-proxy', async (req, res) => {
 
         const redirecionamentos = [301, 302, 303, 307, 308];
         if (!redirecionamentos.includes(resposta.status)) {
-          return resposta;
+          return { response: resposta, finalUrl: atual };
         }
 
         const location = resposta.headers.get('location');
-        if (!location) return resposta;
+        if (!location) return { response: resposta, finalUrl: atual };
 
         await resposta.body?.cancel().catch(() => {});
-        atual = normalizarDestinoRedirect(new URL(location, atual));
-        if (!['http:', 'https:'].includes(atual.protocol)) {
-          throw new Error('O servidor IPTV retornou um redirecionamento com protocolo não permitido.');
-        }
+        atual = await normalizarDestinoRedirect(new URL(location, atual));
       }
 
       throw new Error('O servidor IPTV excedeu o limite de redirecionamentos.');
     };
 
-    const upstream = await buscarUpstream(targetUrl);
+    const criarUrlProxy = (resourceUrl, origem) => {
+      const absolute = new URL(resourceUrl, origem);
+      if (!['http:', 'https:'].includes(absolute.protocol) || absolute.username || absolute.password) {
+        throw new Error('A playlist contém um recurso com destino inválido.');
+      }
+      const assinatura = absolute.host === baseUrl.host
+        ? ''
+        : crypto.createHmac('sha256', chaveProxy()).update(absolute.toString()).digest('hex');
+      const query = 'url=' + encodeURIComponent(absolute.toString())
+        + (assinatura ? '&sig=' + assinatura : '');
+      return '/api/stream-proxy?' + query;
+    };
+
+    const resultadoUpstream = await buscarUpstream(targetUrl);
+    const upstream = resultadoUpstream.response;
+    const finalUrl = resultadoUpstream.finalUrl;
 
     if (!upstream.ok && upstream.status !== 206) {
       return res.status(upstream.status).send('Erro ao obter stream.');
     }
 
     const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
-    const finalUrl = upstream.url ? new URL(upstream.url) : targetUrl;
     console.info('[STREAM-PROXY]', JSON.stringify({
       status: upstream.status,
       contentType: contentType || '(ausente)',
@@ -628,15 +694,7 @@ app.get('/api/stream-proxy', async (req, res) => {
     if (isPlaylist) {
       const playlistText = await upstream.text();
       // A playlist pode redirecionar; URLs relativas devem partir do endereço final.
-      const playlistBase = new URL(upstream.url || targetUrl.toString());
-
-      const criarUrlProxy = (resourceUrl) => {
-        const absolute = normalizarDestinoRedirect(new URL(resourceUrl, playlistBase));
-        if (!['http:', 'https:'].includes(absolute.protocol) || absolute.host !== baseUrl.host) {
-          throw new Error('A playlist contém um recurso de domínio não autorizado.');
-        }
-        return '/api/stream-proxy?url=' + encodeURIComponent(absolute.toString());
-      };
+      const playlistBase = finalUrl;
 
       const rewritten = playlistText
         .split(/\r?\n/)
@@ -658,7 +716,7 @@ app.get('/api/stream-proxy', async (req, res) => {
           }
 
           try {
-            return criarUrlProxy(trimmed);
+            return criarUrlProxy(trimmed, playlistBase);
           } catch (error) {
             console.warn('Segmento HLS ignorado:', error.message);
             return line;
