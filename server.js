@@ -4,6 +4,7 @@ const path = require('path');
 const os = require('os');
 const { Readable } = require('stream');
 const net = require('net');
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -16,6 +17,8 @@ const PROGRESS_PATH = path.join(__dirname, 'progresso.json');
 
 const ADMIN_USER = process.env.ADMIN_USER || 'Neguedri';
 const ADMIN_PASS = String(process.env.ADMIN_PASS || '281219').trim();
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || process.env.ADMIN_PASS || ADMIN_PASS;
+const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const UM_MES_MS = 30 * 24 * 60 * 60 * 1000;
 
 app.use(express.urlencoded({ extended: true }));
@@ -54,6 +57,24 @@ function salvarArquivoJSON(caminho, dados) {
   const temporario = `${caminho}.${process.pid}.${Date.now()}.tmp`;
   fs.writeFileSync(temporario, JSON.stringify(dados, null, 2), { encoding: 'utf8', mode: 0o600 });
   fs.renameSync(temporario, caminho);
+}
+
+function gerarTokenAdmin() {
+  const payload = Buffer.from(JSON.stringify({ sub: '1', exp: Date.now() + ADMIN_SESSION_TTL_MS })).toString('base64url');
+  const assinatura = crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(payload).digest('base64url');
+  return `${payload}.${assinatura}`;
+}
+
+function validarTokenAdmin(token) {
+  try {
+    const [payload, assinatura, extra] = String(token || '').split('.');
+    if (!payload || !assinatura || extra) return false;
+    const esperada = crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(payload).digest();
+    const recebida = Buffer.from(assinatura, 'base64url');
+    if (recebida.length !== esperada.length || !crypto.timingSafeEqual(recebida, esperada)) return false;
+    const dados = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'));
+    return dados.sub === '1' && Number(dados.exp) > Date.now();
+  } catch (_) { return false; }
 }
 
 function lerUsuariosIPTV() {
@@ -163,18 +184,9 @@ function chaveProgresso(item) {
 
 // Middleware que bloqueia acesso ao Gerenciador para qualquer conta que não seja o Usuário Principal
 function exigirAdmin(req, res, next) {
-  const userId = String(req.headers['x-user-id'] || req.query.userId || req.body?.adminUserId || '').trim();
-  const userNome = String(req.headers['x-user-name'] || req.query.userName || req.body?.adminUserName || '').trim().toLowerCase();
-  const userPass = String(req.headers['x-user-pass'] || '').trim();
-
-  const ehPrincipal = Boolean(ADMIN_PASS)
-    && userId === '1'
-    && userNome === ADMIN_USER.toLowerCase()
-    && userPass === ADMIN_PASS;
-
-  if (!ehPrincipal) {
-    return res.status(403).json({ erro: 'Acesso restrito exclusivamente ao usuário principal.' });
-  }
+  const authorization = String(req.headers.authorization || '');
+  const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+  if (!validarTokenAdmin(token)) return res.status(401).json({ erro: 'Sessão administrativa inválida ou expirada. Entre novamente.' });
   return next();
 }
 
@@ -207,22 +219,7 @@ app.post('/api/auth/login', (req, res) => {
 
   // Usuário Principal
   if (ADMIN_PASS && usuarioDigitado.toLowerCase() === ADMIN_USER.toLowerCase() && senhaDigitada === ADMIN_PASS) {
-    return res.json({
-      sucesso: true,
-      usuario: {
-        id: '1',
-        nome: ADMIN_USER,
-        nomeCliente: ADMIN_USER,
-        senha: ADMIN_PASS,
-        role: 'admin',
-        vencido: false,
-        iptv: iptvPrincipal ? {
-          url: formatarUrl(iptvPrincipal.url),
-          usuario: iptvPrincipal.usuario,
-          senha: iptvPrincipal.senha
-        } : null
-      }
-    });
+    return res.json({ sucesso: true, usuario: { id: '1', nome: ADMIN_USER, nomeCliente: ADMIN_USER, role: 'admin', vencido: false, token: gerarTokenAdmin() } });
   }
 
   // Usuários criados no Gerenciador
@@ -282,9 +279,13 @@ app.post('/api/auth/login', (req, res) => {
 // Verifica status do usuário em tempo real
 app.get('/api/auth/status', (req, res) => {
   const { userId } = req.query;
-  if (!userId || String(userId) === '1') {
+  if (String(userId || '') === '1') {
+    const authorization = String(req.headers.authorization || '');
+    const token = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    if (!validarTokenAdmin(token)) return res.status(401).json({ ativo: false, vencido: true, erro: 'Sessão administrativa expirada.' });
     return res.json({ ativo: true, vencido: false, bloqueadoManual: false, expiradoPorTempo: false });
   }
+  if (!userId) return res.status(400).json({ erro: 'Informe o usuário.' });
   const usuarios = lerUsuariosSistema();
   const user = usuarios.find(u => String(u.id) === String(userId));
   if (!user) {
@@ -310,7 +311,6 @@ app.get('/api/gerenciador/usuarios', exigirAdmin, (req, res) => {
       id: u.id,
       nomeCliente: u.nomeCliente || u.usuario,
       usuario: u.usuario,
-      senha: u.senha,
       telefone: u.telefone || '',
       criadoEm: u.criadoEm || null,
       startedAt: u.startedAt || null,
@@ -357,7 +357,7 @@ app.post('/api/gerenciador/usuarios', exigirAdmin, (req, res) => {
 
   usuarios.unshift(novoUsuario);
   salvarUsuariosSistema(usuarios);
-  res.json({ sucesso: true, usuario: novoUsuario });
+  res.json({ sucesso: true, usuario: { id: novoUsuario.id, nomeCliente: novoUsuario.nomeCliente, usuario: novoUsuario.usuario, telefone: novoUsuario.telefone, criadoEm: novoUsuario.criadoEm } });
 });
 
 // Bloquear ou desbloquear usuário manualmente
