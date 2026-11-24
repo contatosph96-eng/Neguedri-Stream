@@ -167,6 +167,8 @@
     let hls = null;
     let playbackAtual = null;
     let tentativaAtual = 0;
+    let tentativasRedeHls = 0;
+    let tentativasMidiaHls = 0;
 
     const video = document.getElementById('externalVideo');
     const title = document.getElementById('playerTitle');
@@ -242,6 +244,8 @@
 
       playbackAtual = playback;
       tentativaAtual++;
+      tentativasRedeHls = 0;
+      tentativasMidiaHls = 0;
 
       document.title = playback.titulo || 'Neguedri Stream';
       title.textContent = playback.titulo || 'Neguedri Stream';
@@ -324,14 +328,16 @@
 
             console.error('Erro HLS:', data);
 
-            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-              mostrarStatus('Falha de conexão. Tentando reconectar...');
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR && tentativasRedeHls < 3) {
+              tentativasRedeHls++;
+              mostrarStatus(`Falha de conexão. Nova tentativa ${tentativasRedeHls}/3...`);
               hls.startLoad();
-            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-              mostrarStatus('Recuperando reprodução...');
+            } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR && tentativasMidiaHls < 2) {
+              tentativasMidiaHls++;
+              mostrarStatus('Recuperando a reprodução...');
               hls.recoverMediaError();
             } else {
-              mostrarStatus('Não foi possível reproduzir esta transmissão.', true);
+              mostrarStatus('Não foi possível reproduzir esta transmissão. Verifique a conexão ou tente outro canal.', true);
               hls.destroy();
               hls = null;
             }
