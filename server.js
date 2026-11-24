@@ -522,6 +522,10 @@ app.get('/api/stream-proxy', async (req, res) => {
   }
 
   if (targetUrl.host !== baseHost) {
+    console.warn('Stream proxy bloqueou domínio diferente:', {
+      requisitado: targetUrl.host,
+      permitido: baseHost
+    });
     return res.status(403).send('Domínio não autorizado.');
   }
 
@@ -535,6 +539,11 @@ app.get('/api/stream-proxy', async (req, res) => {
 
     const upstream = await fetch(targetUrl.toString(), { headers });
     if (!upstream.ok && upstream.status !== 206) {
+      console.warn('Servidor do stream respondeu com erro:', {
+        status: upstream.status,
+        host: targetUrl.host,
+        tipo: upstream.headers.get('content-type') || 'desconhecido'
+      });
       return res.status(upstream.status).send('Erro ao obter stream.');
     }
 
