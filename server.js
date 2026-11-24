@@ -665,7 +665,6 @@ app.get('/api/stream-proxy', async (req, res) => {
           redirect: 'manual',
           signal: AbortSignal.timeout(25000)
         });
-        });
 
         const redirecionamentos = [301, 302, 303, 307, 308];
         if (!redirecionamentos.includes(resposta.status)) {
