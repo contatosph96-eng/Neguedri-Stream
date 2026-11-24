@@ -1660,8 +1660,13 @@
         reproducaoIniciada = true;
         const tentativa = video.play();
         if (tentativa && tentativa.catch) {
-          tentativa.catch(() => {
-            statusBox.textContent = 'Toque na tela para iniciar o vídeo.';
+          tentativa.catch(error => {
+            reproducaoIniciada = false;
+            if (error && error.name === 'NotAllowedError') {
+              statusBox.textContent = 'Toque no botão ▶ do vídeo para iniciar.';
+            } else {
+              statusBox.textContent = 'Não foi possível iniciar o vídeo. Toque em ▶ para tentar novamente.';
+            }
           });
         }
       }
@@ -1676,6 +1681,10 @@
         statusBox.textContent = 'Não foi possível carregar esta transmissão. Tente outro título ou verifique a conexão do servidor de vídeo.';
       }
     }
+
+    video.onclick = () => {
+      if (video.paused && video.currentSrc) iniciarReproducao();
+    };
 
     video.onplaying = () => {
       statusBox.style.display = 'none';
@@ -1724,6 +1733,7 @@
         });
         hls.loadSource(entrada.fonteUrl);
         hls.attachMedia(video);
+        iniciarReproducao();
         hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
@@ -1739,6 +1749,7 @@
         };
         video.src = entrada.fonteUrl;
         video.load();
+        iniciarReproducao();
       }
     }
 
