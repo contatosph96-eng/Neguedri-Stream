@@ -14,6 +14,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/2neguedri.png">
   <title>Neguedri Stream</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.18"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dashjs@4.7.4/dist/dash.all.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.8.0/dist/mpegts.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -1869,6 +1871,8 @@
       if (itemProgressoAtual && !progressoConcluido) salvarProgressoAtual();
     };
 
+    video.preload = 'auto';
+    video.playsInline = true;
     video.onloadedmetadata = iniciarReproducao;
     video.onended = async function() {
       progressoConcluido = true;
@@ -1876,24 +1880,46 @@
       if (podeTerProximo) await tocarProximoEpisodio();
     };
 
-    function carregarEntrada(entrada) {
-      if (hls) {
-        hls.destroy();
-        hls = null;
+    function destruirEngines() {
+      if (hls) { hls.destroy(); hls = null; }
+      if (window.dashPlayer) {
+        try { window.dashPlayer.reset(); } catch (_) {}
+        window.dashPlayer = null;
       }
+      if (window.mpegtsPlayer) {
+        try { window.mpegtsPlayer.pause(); window.mpegtsPlayer.unload(); window.mpegtsPlayer.detachMediaElement(); window.mpegtsPlayer.destroy(); } catch (_) {}
+        window.mpegtsPlayer = null;
+      }
+    }
 
+    function extensaoMidia(url) {
+      try {
+        const parsed = new URL(url, window.location.href);
+        const original = parsed.searchParams.get('url');
+        const caminho = original ? new URL(original).pathname : parsed.pathname;
+        const match = caminho.toLowerCase().match(/\.([a-z0-9]+)$/);
+        return match ? match[1] : '';
+      } catch (_) { return ''; }
+    }
+
+    function carregarEntrada(entrada) {
+      destruirEngines();
       video.onerror = () => {
         const erro = video.error;
         if (erro && erro.code === 2) ultimoErroRede = 'erro de rede';
-        if (erro && erro.code === 3) ultimoErroRede = 'falha de decodificação/codec';
-        if (erro && erro.code === 4) ultimoErroRede = 'formato ou MIME não reconhecido';
+        if (erro && erro.code === 3) ultimoErroRede = 'codec não decodificável neste aparelho';
+        if (erro && erro.code === 4) ultimoErroRede = 'formato/MIME não suportado pelo navegador';
         tentarProximaFonte();
       };
 
-      const ehHls = ehUrlHls(entrada.rawUrl);
+      const ext = extensaoMidia(entrada.rawUrl);
+      const ehHls = ehUrlHls(entrada.rawUrl) || ext === 'm3u';
+      const ehDash = ext === 'mpd';
+      const ehFlv = ext === 'flv';
+      const ehTs = ext === 'ts' || ext === 'm2ts' || ext === 'mts';
       const hlsNativo = ehHls && video.canPlayType('application/vnd.apple.mpegurl');
 
-      // Safari, iPhone e iPad costumam reproduzir HLS nativamente.
+      // HLS nativo costuma ser mais eficiente em Safari/iOS.
       if (hlsNativo) {
         video.src = entrada.fonteUrl;
         video.load();
@@ -1904,23 +1930,22 @@
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: false,
-          maxBufferLength: 30,
-          maxMaxBufferLength: 60,
-          backBufferLength: 30,
-          manifestLoadingTimeOut: 20000,
-          manifestLoadingMaxRetry: 3,
+          startLevel: -1,
+          capLevelToPlayerSize: true,
+          maxBufferLength: 20,
+          maxMaxBufferLength: 45,
+          backBufferLength: 20,
+          manifestLoadingTimeOut: 15000,
+          manifestLoadingMaxRetry: 2,
           levelLoadingMaxRetry: 3,
-          fragLoadingMaxRetry: 4
+          fragLoadingMaxRetry: 3
         });
-
         hls.attachMedia(video);
-        hls.on(Hls.Events.MEDIA_ATTACHED, () => {
-          if (hls) hls.loadSource(entrada.fonteUrl);
-        });
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => hls && hls.loadSource(entrada.fonteUrl));
         hls.on(Hls.Events.MANIFEST_PARSED, iniciarReproducao);
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (!data.fatal) return;
-          if (data.response && data.response.code) ultimoErroRede = data.response.code;
+          if (data.response && data.response.code) ultimoErroRede = 'HTTP ' + data.response.code;
           if (data.type === Hls.ErrorTypes.MEDIA_ERROR && hls) {
             hls.recoverMediaError();
             return;
@@ -1930,7 +1955,50 @@
         return;
       }
 
-      // Para MP4/TS e navegadores sem HLS.js.
+      // MPEG-DASH (.mpd), quando o navegador/servidor fornece CORS e segmentos válidos.
+      if (ehDash && window.dashjs && window.dashjs.supportsMediaSource()) {
+        window.dashPlayer = window.dashjs.MediaPlayer().create();
+        window.dashPlayer.updateSettings({
+          streaming: {
+            lowLatencyEnabled: false,
+            buffer: { stableBufferTime: 12, bufferTimeAtTopQuality: 18 },
+            retryAttempts: { MPD: 2, MediaSegment: 3 },
+            retryIntervals: { MPD: 500, MediaSegment: 700 }
+          }
+        });
+        window.dashPlayer.initialize(video, entrada.fonteUrl, false);
+        window.dashPlayer.on(window.dashjs.MediaPlayer.events.STREAM_INITIALIZED, iniciarReproducao);
+        window.dashPlayer.on(window.dashjs.MediaPlayer.events.ERROR, () => {
+          ultimoErroRede = 'falha ao carregar MPEG-DASH';
+        });
+        return;
+      }
+
+      // MPEG-TS/FLV encapsulado: transmux para MSE em navegadores compatíveis.
+      if ((ehTs || ehFlv) && window.mpegts && window.mpegts.isSupported()) {
+        window.mpegtsPlayer = window.mpegts.createPlayer({
+          type: ehFlv ? 'flv' : 'mpegts',
+          isLive: tipo === 'live',
+          url: entrada.fonteUrl
+        }, {
+          enableWorker: true,
+          lazyLoad: true,
+          lazyLoadMaxDuration: 20,
+          stashInitialSize: 128,
+          enableStashBuffer: true
+        });
+        window.mpegtsPlayer.attachMediaElement(video);
+        window.mpegtsPlayer.on(window.mpegts.Events.ERROR, (errorType, errorDetail) => {
+          ultimoErroRede = 'MPEG-TS: ' + String(errorDetail || errorType || 'erro de mídia');
+          tentarProximaFonte();
+        });
+        window.mpegtsPlayer.load();
+        window.mpegtsPlayer.play().then(iniciarReproducao).catch(() => {});
+        return;
+      }
+
+      // MP4, WebM, OGG e demais formatos que o próprio navegador decodifica.
+      // MKV/AVI/WMV/codec proprietário não podem ser garantidos sem transcodificação.
       video.src = entrada.fonteUrl;
       video.load();
     }
