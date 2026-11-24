@@ -666,19 +666,45 @@ app.get('/api/stream-proxy', async (req, res) => {
 
         // O timeout protege apenas a conexão inicial até os cabeçalhos.
         // Não deve abortar o corpo, pois filmes podem durar horas.
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
         let resposta;
-        try {
-          resposta = await fetch(atual.toString(), {
-            method: 'GET',
-            headers,
-            redirect: 'manual',
-            signal: controller.signal
-          });
-        } finally {
-          clearTimeout(timeoutId);
+        let ultimoErro;
+        // Falhas transitórias de DNS/TCP/TLS podem ocorrer no ambiente de
+        // hospedagem. Repetimos poucas vezes, sem reiniciar uma resposta já aberta.
+        for (let tentativaRede = 0; tentativaRede < 3; tentativaRede++) {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          try {
+            resposta = await fetch(atual.toString(), {
+              method: 'GET',
+              headers,
+              redirect: 'manual',
+              signal: controller.signal
+            });
+            ultimoErro = null;
+            break;
+          } catch (error) {
+            ultimoErro = error;
+            const causa = error && error.cause;
+            console.error('[STREAM-CONNECTION-RETRY]', JSON.stringify({
+              host: atual.host,
+              protocol: atual.protocol,
+              port: atual.port || '(padrão)',
+              attempt: tentativaRede + 1,
+              maxAttempts: 3,
+              name: error.name || 'Error',
+              code: error.code || causa?.code || causa?.errno || null,
+              causeCode: causa?.code || causa?.errno || null,
+              message: String(error.message || '').slice(0, 220),
+              causeMessage: String(causa?.message || '').slice(0, 220)
+            }));
+            if (tentativaRede < 2) {
+              await new Promise(resolve => setTimeout(resolve, 400 * (tentativaRede + 1)));
+            }
+          } finally {
+            clearTimeout(timeoutId);
+          }
         }
+        if (!resposta) throw ultimoErro || new Error('Falha de conexão com o servidor de mídia.');
 
         const redirecionamentos = [301, 302, 303, 307, 308];
         if (!redirecionamentos.includes(resposta.status)) {
