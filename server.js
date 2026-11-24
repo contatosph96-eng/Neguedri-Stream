@@ -574,7 +574,11 @@ app.get('/api/stream-proxy', async (req, res) => {
       res.end();
     }
   } catch (error) {
-    console.error('Erro no stream-proxy:', error.message);
+    const causa = error.cause || {};
+    console.error('Erro no stream-proxy:', error.message, {
+      codigo: causa.code || error.code || 'indisponivel',
+      detalhe: causa.message || 'sem detalhe'
+    });
     if (!res.headersSent) res.status(502).send('Falha na transmissão.');
   }
 });
