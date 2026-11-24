@@ -876,9 +876,7 @@
   function headersAdmin() {
     return {
       'Content-Type': 'application/json',
-      'x-user-id': String(usuarioLogado?.id || ''),
-      'x-user-name': String(usuarioLogado?.nome || ''),
-      'x-user-pass': String(usuarioLogado?.senha || '')
+      'Authorization': `Bearer ${usuarioLogado?.token || ''}`
     };
   }
 
@@ -1123,7 +1121,7 @@
         tr.innerHTML = `
           <td><strong>${escaparTexto(u.nomeCliente || u.usuario)}</strong></td>
           <td>${escaparTexto(u.usuario)}</td>
-          <td>${escaparTexto(u.senha)}</td>
+          <td><span aria-label="Senha protegida">••••••••</span></td>
           <td>${escaparTexto(u.telefone)}</td>
           <td>${statusHtml}</td>
           <td style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -1976,8 +1974,13 @@
     if (!salva) return;
     try {
       const parsed = JSON.parse(salva);
-      if (parsed && parsed.role === 'admin' && String(parsed.nome || '').toLowerCase() === 'neguedri') {
-        iniciarSessao(parsed);
+      if (parsed && parsed.role === 'admin' && String(parsed.nome || '').toLowerCase() === 'neguedri' && parsed.token) {
+        const validacao = await fetch(`${SERVER_ORIGIN}/api/auth/status?userId=1`, {
+          headers: { 'Authorization': `Bearer ${parsed.token}` },
+          cache: 'no-store'
+        });
+        if (validacao.ok) iniciarSessao(parsed);
+        else localStorage.removeItem('neguedri_sessao');
         return;
       }
       if (parsed && parsed.id) {
