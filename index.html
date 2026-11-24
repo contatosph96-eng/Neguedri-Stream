@@ -1974,7 +1974,11 @@
     if (!salva) return;
     try {
       const parsed = JSON.parse(salva);
-      if (parsed && parsed.role === 'admin' && String(parsed.nome || '').toLowerCase() === 'neguedri' && parsed.token) {
+      if (parsed && parsed.role === 'admin' && String(parsed.nome || '').toLowerCase() === 'neguedri') {
+        if (!parsed.token) {
+          localStorage.removeItem('neguedri_sessao');
+          return;
+        }
         const validacao = await fetch(`${SERVER_ORIGIN}/api/auth/status?userId=1`, {
           headers: { 'Authorization': `Bearer ${parsed.token}` },
           cache: 'no-store'
