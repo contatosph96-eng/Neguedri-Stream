@@ -1599,22 +1599,6 @@
     }
   }
 
-  async function verificarDisponibilidadeFonte(fonteUrl) {
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 7000);
-      const resp = await fetch(fonteUrl, {
-        method: 'GET',
-        headers: { Range: 'bytes=0-1024' },
-        signal: controller.signal
-      });
-      clearTimeout(timer);
-      return { ok: resp.ok || resp.status === 206, status: resp.status };
-    } catch (err) {
-      return { ok: false, status: 0 };
-    }
-  }
-
   function abrirPlayer(titulo, url, itemObj, podeTerProximo = false, retomarEm = 0) {
     const modal = document.getElementById('playerModal');
     const video = document.getElementById('videoPlayer');
@@ -1650,13 +1634,17 @@
     if (itemObj) registrarHistorico(itemProgressoAtual || itemObj);
 
     const candidatosOriginais = gerarCandidatosUrl(url, tipo);
-    const filaFontes = candidatosOriginais.map((rawUrl) => ({
-      rawUrl,
-      fonteUrl: construirUrlReproducao(rawUrl)
-    }));
+    const filaFontes = [];
+
+    candidatosOriginais.forEach((rawUrl) => {
+      const fonteProxy = construirUrlReproducao(rawUrl);
+      filaFontes.push({ rawUrl, fonteUrl: fonteProxy });
+      if (fonteProxy !== rawUrl) {
+        filaFontes.push({ rawUrl, fonteUrl: rawUrl });
+      }
+    });
 
     let indiceFonte = 0;
-    let ultimoErroRede = null;
     const tempoRetomada = Math.max(0, Number(retomarEm || (itemObj && itemObj.currentTime)) || 0);
     let posicaoRestaurada = tempoRetomada === 0;
     let reproducaoIniciada = false;
@@ -1684,10 +1672,8 @@
       reproducaoIniciada = false;
       if (indiceFonte < filaFontes.length) {
         carregarEntrada(filaFontes[indiceFonte]);
-      } else if (ultimoErroRede) {
-        statusBox.textContent = `Servidor do stream indisponível no Render (HTTP ${ultimoErroRede}).`;
       } else {
-        statusBox.textContent = 'Formato de vídeo não suportado por este navegador.';
+        statusBox.textContent = 'Não foi possível carregar esta transmissão. Tente outro título ou verifique a conexão do servidor de vídeo.';
       }
     }
 
@@ -1729,12 +1715,8 @@
         hls = null;
       }
 
-      const check = await verificarDisponibilidadeFonte(entrada.fonteUrl);
-      if (!check.ok && check.status >= 400) {
-        ultimoErroRede = check.status;
-      }
-
-      if (ehUrlHls(entrada.rawUrl) && window.Hls && Hls.isSupported()) {
+      const hlsNativoDisponivel = Boolean(video.canPlayType('application/vnd.apple.mpegurl'));
+      if (ehUrlHls(entrada.rawUrl) && window.Hls && Hls.isSupported() && !hlsNativoDisponivel) {
         hls = new Hls({
           maxBufferLength: 30,
           maxMaxBufferLength: 60,
