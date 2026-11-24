@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { Readable } = require('stream');
+const { pipeline } = require('stream/promises');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -588,7 +589,7 @@ app.get('/api/stream-proxy', async (req, res) => {
       return res.send(rewritten);
     }
     res.status(upstream.status);
-    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
+    ['content-type', 'content-range', 'accept-ranges'].forEach(h => {
       const val = upstream.headers.get(h);
       if (val) res.setHeader(h, val);
     });
@@ -598,7 +599,7 @@ app.get('/api/stream-proxy', async (req, res) => {
     }
 
     if (upstream.body) {
-      Readable.fromWeb(upstream.body).pipe(res);
+      await pipeline(Readable.fromWeb(upstream.body), res);
     } else {
       res.end();
     }
