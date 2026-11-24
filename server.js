@@ -51,7 +51,9 @@ function lerArquivoJSON(caminho, fallback = {}) {
 }
 
 function salvarArquivoJSON(caminho, dados) {
-  fs.writeFileSync(caminho, JSON.stringify(dados, null, 2));
+  const temporario = `${caminho}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(temporario, JSON.stringify(dados, null, 2), { encoding: 'utf8', mode: 0o600 });
+  fs.renameSync(temporario, caminho);
 }
 
 function lerUsuariosIPTV() {
