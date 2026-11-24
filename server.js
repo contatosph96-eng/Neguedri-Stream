@@ -603,6 +603,8 @@ app.get('/api/stream-proxy', async (req, res) => {
     }
   }
 
+  let destinoEmUso = targetUrl;
+
   try {
     const headers = {
       'User-Agent': 'IPTVSmartersPro',
@@ -628,6 +630,14 @@ app.get('/api/stream-proxy', async (req, res) => {
         }
         visitadas.add(atual.toString());
 
+        destinoEmUso = atual;
+        console.info('[STREAM-UPSTREAM-REQUEST]', JSON.stringify({
+          host: atual.host,
+          protocol: atual.protocol,
+          port: atual.port || '(padrão)',
+          path: atual.pathname
+        }));
+
         const resposta = await fetch(atual.toString(), {
           method: 'GET',
           headers,
@@ -642,8 +652,17 @@ app.get('/api/stream-proxy', async (req, res) => {
         const location = resposta.headers.get('location');
         if (!location) return { response: resposta, finalUrl: atual };
 
+        const proximoDestino = new URL(location, atual);
+        console.info('[STREAM-UPSTREAM-REDIRECT]', JSON.stringify({
+          status: resposta.status,
+          fromHost: atual.host,
+          toHost: proximoDestino.host,
+          toProtocol: proximoDestino.protocol,
+          toPort: proximoDestino.port || '(padrão)',
+          toPath: proximoDestino.pathname
+        }));
         await resposta.body?.cancel().catch(() => {});
-        atual = await normalizarDestinoRedirect(new URL(location, atual));
+        atual = await normalizarDestinoRedirect(proximoDestino);
       }
 
       throw new Error('O servidor IPTV excedeu o limite de redirecionamentos.');
@@ -763,8 +782,11 @@ app.get('/api/stream-proxy', async (req, res) => {
       causa = causa.cause;
     }
     console.error('[STREAM-PROXY-ERROR]', JSON.stringify({
-      host: targetUrl?.host || '(indisponível)',
-      protocol: targetUrl?.protocol || '(indisponível)',
+      requestedHost: targetUrl?.host || '(indisponível)',
+      upstreamHost: destinoEmUso?.host || '(indisponível)',
+      upstreamProtocol: destinoEmUso?.protocol || '(indisponível)',
+      upstreamPort: destinoEmUso?.port || '(padrão)',
+      upstreamPath: destinoEmUso?.pathname || '(indisponível)',
       causas
     }));
     if (!res.headersSent) {
