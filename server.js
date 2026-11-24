@@ -21,8 +21,15 @@ const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || process.env.ADM
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 const UM_MES_MS = 30 * 24 * 60 * 60 * 1000;
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+});
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+app.use(express.json({ limit: '1mb' }));
 
 // Arquivos estáticos e PWA
 app.get('/manifest.webmanifest', (req, res) => {
@@ -574,7 +581,7 @@ app.get('/api/stream-proxy', async (req, res) => {
         || normalizado.startsWith('fe8') || normalizado.startsWith('fe9')
         || normalizado.startsWith('fea') || normalizado.startsWith('feb')
         || normalizado.startsWith('ff')) return false;
-      const mapeado = normalizado.match(/^::ffff:(\\d+\\.\\d+\\.\\d+\\.\\d+)$/);
+      const mapeado = normalizado.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
       return mapeado ? ipv4Publico(mapeado[1]) : true;
     }
     return false;
@@ -655,7 +662,9 @@ app.get('/api/stream-proxy', async (req, res) => {
         const resposta = await fetch(atual.toString(), {
           method: 'GET',
           headers,
-          redirect: 'manual'
+          redirect: 'manual',
+          signal: AbortSignal.timeout(25000)
+        });
         });
 
         const redirecionamentos = [301, 302, 303, 307, 308];
@@ -720,7 +729,7 @@ app.get('/api/stream-proxy', async (req, res) => {
       return res.status(502).send('O servidor IPTV retornou uma página HTML em vez do vídeo. Verifique os logs do Render.');
     }
 
-    const isPlaylist = /\\.m3u8(?:$|[?#])/i.test(targetUrl.pathname)
+    const isPlaylist = /\.m3u8(?:$|[?#])/i.test(targetUrl.pathname)
       || contentType.includes('mpegurl')
       || contentType.includes('x-mpegurl');
 
@@ -832,15 +841,15 @@ app.get('/api/iptv-proxy', async (req, res) => {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
-
-    const response = await fetch(remoteUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'IPTVSmartersPro',
-        'Accept': 'application/json'
-      }
-    });
-    clearTimeout(timeoutId);
+    let response;
+    try {
+      response = await fetch(remoteUrl, {
+        signal: controller.signal,
+        headers: { 'User-Agent': 'IPTVSmartersPro', 'Accept': 'application/json' }
+      });
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       return res.status(response.status).json({ erro: `Servidor remoto retornou erro ${response.status}` });
