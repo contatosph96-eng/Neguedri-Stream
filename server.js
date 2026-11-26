@@ -176,11 +176,6 @@ async function buscarConfiguracaoAdmDaPlanilha() {
   return configuracao;
 }
 
-async function carregarConfiguracaoAdm() {
-  CONFIGURACAO_ADM = await buscarConfiguracaoAdmDaPlanilha();
-  return CONFIGURACAO_ADM;
-}
-
 function parseDataPlanilha(value, nomeCampo) {
   if (value === undefined || value === null || String(value).trim() === '') return null;
   const texto = String(value).trim();
@@ -250,12 +245,6 @@ async function buscarUsuariosDaPlanilha() {
     ids.add(user.id);
     logins.add(login);
   }
-  return usuarios;
-}
-
-async function sincronizarUsuariosDaPlanilha() {
-  const usuarios = await buscarUsuariosDaPlanilha();
-  salvarUsuariosSistema(usuarios);
   return usuarios;
 }
 
