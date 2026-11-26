@@ -4,6 +4,8 @@ const path = require('path');
 const crypto = require('crypto');
 const { Readable } = require('stream');
 const { pipeline } = require('node:stream/promises');
+const dns = require('node:dns');
+dns.setDefaultResultOrder('ipv4first');
 
 const app = express();
 const PORT = process.env.PORT || 1219;
