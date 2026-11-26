@@ -303,6 +303,29 @@
     .card-title { padding: 8px; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; }
 
     .fav-btn { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.8); border: none; color: #ffca28; font-size: 16px; width: 28px; height: 28px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 5; }
+    .remove-progress-btn {
+      position: absolute;
+      top: 9px;
+      right: 9px;
+      z-index: 6;
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 50%;
+      background: rgba(9, 10, 13, 0.82);
+      color: #fff;
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+      transition: background .18s ease, transform .18s ease;
+    }
+    .remove-progress-btn:hover,
+    .remove-progress-btn:focus-visible { background: #e50914; transform: scale(1.05); }
+    .remove-progress-btn:disabled { opacity: .65; cursor: wait; }
+
 
     /* Modal de Séries */
     .series-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 998; justify-content: center; align-items: center; }
@@ -1331,6 +1354,46 @@
     }
   }
 
+  async function removerProgressoDoContinuar(item, card) {
+    if (!usuarioLogado || !item || item.tipo !== 'vod') return;
+
+    const button = card.querySelector('.remove-progress-btn');
+    if (button) button.disabled = true;
+
+    try {
+      const response = await fetch(`${SERVER_ORIGIN}/api/progresso`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: usuarioLogado.id,
+          item,
+          concluido: true
+        })
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || !result.sucesso) {
+        throw new Error(result.erro || 'Não foi possível remover o filme.');
+      }
+
+      const itemId = String(item.id);
+      if (secaoAtual === 'continue') {
+        itensGerais = itensGerais.filter(progresso =>
+          !(String(progresso.id) === itemId && progresso.tipo === 'vod')
+        );
+      }
+
+      card.remove();
+      const grid = document.getElementById('contentGrid');
+      if (secaoAtual === 'continue' && grid && !grid.querySelector('.card')) {
+        grid.innerHTML = '<div style="color:#aaa; padding:20px;">Os filmes e episódios que você começar a assistir aparecerão aqui.</div>';
+      }
+    } catch (error) {
+      if (button) button.disabled = false;
+      console.error('Não foi possível remover o filme de Continuar Assistindo.', error);
+      alert('Não foi possível remover este filme. Tente novamente.');
+    }
+  }
+
   function renderizarGrid(lista, server) {
     const grid = document.getElementById('contentGrid');
     grid.innerHTML = '';
@@ -1381,6 +1444,20 @@
         image.src = 'https://via.placeholder.com/400x600?text=Neguedri';
       };
       card.appendChild(image);
+
+      if (secaoAtual === 'continue' && item.tipo === 'vod') {
+        const removeBtn = document.createElement('button');
+        removeBtn.type = 'button';
+        removeBtn.className = 'remove-progress-btn';
+        removeBtn.textContent = '×';
+        removeBtn.title = 'Remover de Continuar Assistindo';
+        removeBtn.setAttribute('aria-label', 'Remover ' + displayName + ' de Continuar Assistindo');
+        removeBtn.onclick = event => {
+          event.stopPropagation();
+          removerProgressoDoContinuar(item, card);
+        };
+        card.appendChild(removeBtn);
+      }
 
       if (secaoAtual !== 'continue') {
         const favBtn = document.createElement('button');
