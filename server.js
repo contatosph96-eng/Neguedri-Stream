@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { Readable } = require('stream');
+const { pipeline } = require('node:stream/promises');
 
 const app = express();
 const PORT = process.env.PORT || 1219;
@@ -770,7 +771,26 @@ app.post('/api/progresso', (req, res) => {
   res.json({ sucesso: true, progresso: progress[userId] });
 });
 
-// Proxy de Stream para evitar bloqueio HTTP/HTTPS e User-Agent no Safari/iOS/MacBook
+// Proxy de mídia compatível com redirecionamentos HLS e intervalos de MP4.
+const HLS_SIGNING_KEY = process.env.HLS_SIGNING_KEY || crypto.randomBytes(32);
+
+function assinarRecursoHls(url, origem, expira) {
+  return crypto.createHmac('sha256', HLS_SIGNING_KEY)
+    .update(JSON.stringify([origem, url, expira]))
+    .digest('base64url');
+}
+
+function recursoHlsAutorizado(url, origem, query) {
+  if (typeof query.exp !== 'string' || !/^\d{10}$/.test(query.exp) ||
+      Number(query.exp) <= Date.now() / 1000 || typeof query.sig !== 'string') {
+    return false;
+  }
+
+  const assinatura = Buffer.from(query.sig);
+  const esperada = Buffer.from(assinarRecursoHls(url, origem, query.exp));
+  return assinatura.length === esperada.length && crypto.timingSafeEqual(assinatura, esperada);
+}
+
 app.get('/api/stream-proxy', async (req, res) => {
   const { url } = req.query;
   const principal = obterContaPrincipalIPTV();
@@ -779,69 +799,134 @@ app.get('/api/stream-proxy', async (req, res) => {
     return res.status(400).send('URL inválida.');
   }
 
-  const baseHost = new URL(formatarUrl(principal.url)).host;
+  let origem;
   let targetUrl;
   try {
+    origem = new URL(formatarUrl(principal.url)).origin;
     targetUrl = new URL(url);
-  } catch (e) {
+  } catch (error) {
     return res.status(400).send('URL malformada.');
   }
 
-  if (targetUrl.host !== baseHost) {
+  const protocoloPermitido = targetUrl.protocol === 'http:' || targetUrl.protocol === 'https:';
+  const possuiCredenciaisNaUrl = Boolean(targetUrl.username || targetUrl.password);
+  const mesmaOrigem = targetUrl.origin === origem;
+  const recursoAssinado = recursoHlsAutorizado(targetUrl.href, origem, req.query);
+
+  if (!protocoloPermitido || possuiCredenciaisNaUrl || (!mesmaOrigem && !recursoAssinado)) {
     return res.status(403).send('Domínio não autorizado.');
   }
 
+  const controller = new AbortController();
+  const cancelarRequisicao = () => {
+    if (!res.writableFinished) controller.abort();
+  };
+  res.once('close', cancelarRequisicao);
+
   try {
     const headers = {
+      'Accept-Encoding': 'identity',
       'User-Agent': 'IPTVSmartersPro'
     };
-    if (req.headers.range) {
-      headers['Range'] = req.headers.range;
+    if (req.headers.range && !targetUrl.pathname.toLowerCase().endsWith('.m3u8')) {
+      headers.Range = req.headers.range;
     }
 
-    const upstream = await fetch(targetUrl.toString(), { headers });
+    const upstream = await fetch(targetUrl, {
+      headers,
+      signal: controller.signal
+    });
+
     if (!upstream.ok && upstream.status !== 206) {
+      await upstream.body?.cancel();
+      console.warn('Servidor de mídia respondeu com erro:', {
+        status: upstream.status,
+        host: targetUrl.host,
+        contentType: upstream.headers.get('content-type') || 'desconhecido'
+      });
       return res.status(upstream.status).send('Erro ao obter stream.');
     }
 
     const contentType = upstream.headers.get('content-type') || '';
+    const respostaHls = targetUrl.pathname.toLowerCase().endsWith('.m3u8') ||
+      contentType.toLowerCase().includes('mpegurl');
 
-    if (targetUrl.pathname.endsWith('.m3u8') || contentType.includes('mpegurl')) {
-      const playlistText = await upstream.text();
-      const basePath = targetUrl.href.substring(0, targetUrl.href.lastIndexOf('/') + 1);
-      const rewritten = playlistText
-        .split('\n')
-        .map(line => {
-          const trimmed = line.trim();
-          if (!trimmed || trimmed.startsWith('#')) return line;
-          const absoluteSegment = trimmed.startsWith('http') ? trimmed : new URL(trimmed, basePath).toString();
-          return `/api/stream-proxy?url=${encodeURIComponent(absoluteSegment)}`;
+    if (respostaHls) {
+      const playlistText = (await upstream.text()).replace(/^\uFEFF/, '');
+      if (!playlistText.trimStart().startsWith('#EXTM3U')) {
+        return res.status(502).send('Resposta de playlist inválida.');
+      }
+
+      const finalUrl = new URL(upstream.url || targetUrl.href);
+      const expira = String(Math.floor(Date.now() / 1000) + 86400);
+
+      function urlDoProxy(uri) {
+        try {
+          const recurso = new URL(uri, finalUrl);
+          const protocoloRecursoPermitido = recurso.protocol === 'http:' || recurso.protocol === 'https:';
+          if (!protocoloRecursoPermitido || recurso.username || recurso.password) return uri;
+
+          const parametros = new URLSearchParams({ url: recurso.href });
+          if (recurso.origin !== origem) {
+            parametros.set('exp', expira);
+            parametros.set('sig', assinarRecursoHls(recurso.href, origem, expira));
+          }
+          return '/api/stream-proxy?' + parametros.toString();
+        } catch (error) {
+          return uri;
+        }
+      }
+
+      const playlistReescrita = playlistText
+        .split(/\r?\n/)
+        .map(linha => {
+          const linhaTrimada = linha.trim();
+          if (!linhaTrimada) return linha;
+          if (!linhaTrimada.startsWith('#')) return urlDoProxy(linhaTrimada);
+
+          return linha.replace(/URI="([^"]+)"/g, (correspondencia, uri) => {
+            const urlReescrita = urlDoProxy(uri);
+            return urlReescrita === uri ? correspondencia : 'URI="' + urlReescrita + '"';
+          });
         })
         .join('\n');
 
       res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
       res.setHeader('Cache-Control', 'no-cache');
-      return res.send(rewritten);
+      return res.send(playlistReescrita);
     }
 
     res.status(upstream.status);
-    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(h => {
-      const val = upstream.headers.get(h);
-      if (val) res.setHeader(h, val);
+    ['content-type', 'content-range', 'accept-ranges'].forEach(cabecalho => {
+      const valor = upstream.headers.get(cabecalho);
+      if (valor) res.setHeader(cabecalho, valor);
     });
 
-    if (!upstream.headers.get('content-type') && targetUrl.pathname.endsWith('.ts')) {
+    const contentEncoding = upstream.headers.get('content-encoding');
+    const contentLength = upstream.headers.get('content-length');
+    if ((!contentEncoding || contentEncoding === 'identity') && contentLength) {
+      res.setHeader('Content-Length', contentLength);
+    }
+    if (!upstream.headers.get('content-type') && targetUrl.pathname.toLowerCase().endsWith('.ts')) {
       res.setHeader('Content-Type', 'video/mp2t');
     }
 
     if (upstream.body) {
-      Readable.fromWeb(upstream.body).pipe(res);
+      await pipeline(Readable.fromWeb(upstream.body), res);
     } else {
       res.end();
     }
   } catch (error) {
-    console.error('Erro no stream-proxy:', error.message);
-    if (!res.headersSent) res.status(502).send('Falha na transmissão.');
+    const causa = error.cause || {};
+    console.error('Erro no stream-proxy:', {
+      code: causa.code || error.code || error.name,
+      host: targetUrl.host
+    });
+    if (!res.headersSent && !res.destroyed) {
+      res.status(502).send('Falha na transmissão.');
+    }
+  } finally {
+    res.off('close', cancelarRequisicao);
   }
 });
 
