@@ -15,6 +15,7 @@ const SHEETDB_API_URL = process.env.SHEETDB_API_URL || 'https://sheetdb.io/api/v
 const SHEETDB_SHEET_NAME = process.env.SHEETDB_SHEET_NAME || 'BancodeDados';
 const SHEETDB_ADM_SHEET_NAME = process.env.SHEETDB_ADM_SHEET_NAME || 'Adm';
 const SHEETDB_BEARER_TOKEN = process.env.SHEETDB_BEARER_TOKEN || '';
+const SHEETDB_SYNC_WEBHOOK_SECRET = process.env.SHEETDB_SYNC_WEBHOOK_SECRET || '';
 
 const JSON_PATH = path.join(DATA_DIR, 'dados.json');
 const USERS_AUTH_PATH = path.join(DATA_DIR, 'usuarios_sistema.json');
@@ -23,6 +24,8 @@ const HIST_PATH = path.join(DATA_DIR, 'historico.json');
 const PROGRESS_PATH = path.join(DATA_DIR, 'progresso.json');
 
 let CONFIGURACAO_ADM = null;
+const sincronizacoesPlanilhaAtivas = new Map();
+const sincronizacoesPlanilhaPendentes = new Set();
 const UM_MES_MS = 30 * 24 * 60 * 60 * 1000;
 
 app.use(express.urlencoded({ extended: true }));
@@ -109,7 +112,8 @@ async function sheetDbRequest(
   suffix = '',
   body = undefined,
   rawValues = false,
-  sheetName = SHEETDB_SHEET_NAME
+  sheetName = SHEETDB_SHEET_NAME,
+  ignoreCache = false
 ) {
   if (!SHEETDB_BEARER_TOKEN) {
     throw new Error('Token Bearer do SheetDB não foi configurado.');
@@ -123,6 +127,7 @@ async function sheetDbRequest(
   };
   const url = sheetDbUrl(suffix, sheetName);
   if (rawValues) url.searchParams.set('mode', 'RAW');
+  if (ignoreCache) url.searchParams.set('ignore_cache', '1');
   if (body !== undefined) {
     options.headers['Content-Type'] = 'application/json';
     options.body = JSON.stringify(body);
@@ -151,26 +156,11 @@ async function sheetDbRequest(
   return result;
 }
 
-async function carregarConfiguracaoAdm() {
-  const rows = await sheetDbRequest(
-    'GET',
-    '',
-    undefined,
-    false,
-    SHEETDB_ADM_SHEET_NAME
-  );
-
-  if (!Array.isArray(rows)) {
-    throw new Error('A guia Adm não retornou uma lista de configurações.');
-  }
-
-  const row = rows.find(item =>
-    item && Object.values(item).some(value => String(value ?? '').trim() !== '')
-  );
-
-  if (!row) {
-    throw new Error('Preencha uma linha de dados na guia Adm.');
-  }
+async function buscarConfiguracaoAdmDaPlanilha() {
+  const rows = await sheetDbRequest('GET', '', undefined, false, SHEETDB_ADM_SHEET_NAME, true);
+  if (!Array.isArray(rows)) throw new Error('A guia Adm não retornou uma lista de configurações.');
+  const row = rows.find(item => item && Object.values(item).some(value => String(value ?? '').trim() !== ''));
+  if (!row) throw new Error('Preencha uma linha de dados na guia Adm.');
 
   const configuracao = {
     usuarioAdmin: String(row.usuarioAdmin || '').trim(),
@@ -179,16 +169,16 @@ async function carregarConfiguracaoAdm() {
     usuarioIptv: String(row.usuarioIptv || '').trim(),
     senhaIptv: String(row.senhaIptv || '').trim()
   };
-
   const camposFaltando = Object.entries(configuracao)
     .filter(([, valor]) => !valor)
     .map(([campo]) => campo);
+  if (camposFaltando.length) throw new Error(`Preencha na guia Adm: ${camposFaltando.join(', ')}.`);
+  return configuracao;
+}
 
-  if (camposFaltando.length) {
-    throw new Error(`Preencha na guia Adm: ${camposFaltando.join(', ')}.`);
-  }
-
-  CONFIGURACAO_ADM = configuracao;
+async function carregarConfiguracaoAdm() {
+  CONFIGURACAO_ADM = await buscarConfiguracaoAdmDaPlanilha();
+  return CONFIGURACAO_ADM;
 }
 
 function parseDataPlanilha(value, nomeCampo) {
@@ -245,8 +235,8 @@ function usuarioDaPlanilha(row) {
   };
 }
 
-async function sincronizarUsuariosDaPlanilha() {
-  const rows = await sheetDbRequest('GET');
+async function buscarUsuariosDaPlanilha() {
+  const rows = await sheetDbRequest('GET', '', undefined, false, SHEETDB_SHEET_NAME, true);
   if (!Array.isArray(rows)) throw new Error('A aba BancodeDados precisa retornar uma lista de usuários.');
   const usuarios = rows
     .filter(row => row && Object.values(row).some(value => String(value ?? '').trim() !== ''))
@@ -260,8 +250,72 @@ async function sincronizarUsuariosDaPlanilha() {
     ids.add(user.id);
     logins.add(login);
   }
+  return usuarios;
+}
+
+async function sincronizarUsuariosDaPlanilha() {
+  const usuarios = await buscarUsuariosDaPlanilha();
   salvarUsuariosSistema(usuarios);
   return usuarios;
+}
+
+async function sincronizarAbaPlanilhaUmaVez(nomeAba) {
+  if (nomeAba === SHEETDB_ADM_SHEET_NAME) {
+    const configuracao = await buscarConfiguracaoAdmDaPlanilha();
+    CONFIGURACAO_ADM = configuracao;
+    return { aba: nomeAba, registros: 1 };
+  }
+  if (nomeAba === SHEETDB_SHEET_NAME) {
+    const usuarios = await buscarUsuariosDaPlanilha();
+    salvarUsuariosSistema(usuarios);
+    return { aba: nomeAba, registros: usuarios.length };
+  }
+  throw new Error('A guia solicitada não está habilitada para sincronização.');
+}
+
+async function sincronizarAbaPlanilha(nomeAba) {
+  if (![SHEETDB_ADM_SHEET_NAME, SHEETDB_SHEET_NAME].includes(nomeAba)) {
+    throw new Error('A guia solicitada não está habilitada para sincronização.');
+  }
+  if (sincronizacoesPlanilhaAtivas.has(nomeAba)) {
+    sincronizacoesPlanilhaPendentes.add(nomeAba);
+    return sincronizacoesPlanilhaAtivas.get(nomeAba);
+  }
+
+  const sincronizacao = (async () => {
+    let resultado;
+    do {
+      sincronizacoesPlanilhaPendentes.delete(nomeAba);
+      resultado = await sincronizarAbaPlanilhaUmaVez(nomeAba);
+    } while (sincronizacoesPlanilhaPendentes.has(nomeAba));
+    return resultado;
+  })();
+
+  sincronizacoesPlanilhaAtivas.set(nomeAba, sincronizacao);
+  try {
+    return await sincronizacao;
+  } finally {
+    sincronizacoesPlanilhaAtivas.delete(nomeAba);
+    sincronizacoesPlanilhaPendentes.delete(nomeAba);
+  }
+}
+
+async function sincronizarPlanilhaCompleta() {
+  if (SHEETDB_ADM_SHEET_NAME === SHEETDB_SHEET_NAME) {
+    throw new Error('As guias de administração e usuários precisam ter nomes diferentes.');
+  }
+  const resultados = [];
+  resultados.push(await sincronizarAbaPlanilha(SHEETDB_ADM_SHEET_NAME));
+  resultados.push(await sincronizarAbaPlanilha(SHEETDB_SHEET_NAME));
+  return resultados;
+}
+
+function webhookPlanilhaAutorizado(req) {
+  const correspondencia = String(req.get('authorization') || '').match(/^Bearer\s+(.+)$/i);
+  if (!SHEETDB_SYNC_WEBHOOK_SECRET || !correspondencia) return false;
+  const esperado = Buffer.from(SHEETDB_SYNC_WEBHOOK_SECRET, 'utf8');
+  const recebido = Buffer.from(correspondencia[1], 'utf8');
+  return esperado.length === recebido.length && crypto.timingSafeEqual(esperado, recebido);
 }
 
 async function atualizarLinhaPlanilha(id, campos) {
@@ -486,6 +540,33 @@ app.get('/api/auth/status', (req, res) => {
     diasRestantes: info.diasRestantes,
     bloqueio: montarPayloadBloqueio(user, info)
   });
+});
+
+app.post('/api/sync/sheetdb', async (req, res) => {
+  if (!SHEETDB_SYNC_WEBHOOK_SECRET) return res.status(503).json({ erro: 'Sincronização externa não está configurada.' });
+  if (!webhookPlanilhaAutorizado(req)) return res.status(401).json({ erro: 'Não autorizado.' });
+
+  const valorAba = req.body?.sheet;
+  if (valorAba !== undefined && typeof valorAba !== 'string') {
+    return res.status(400).json({ erro: 'A guia informada é inválida.' });
+  }
+  const nomeAba = valorAba === undefined ? null : valorAba.trim();
+  if (valorAba !== undefined && !nomeAba) {
+    return res.status(400).json({ erro: 'A guia informada é inválida.' });
+  }
+
+  try {
+    const resultados = nomeAba
+      ? [await sincronizarAbaPlanilha(nomeAba)]
+      : await sincronizarPlanilhaCompleta();
+    return res.json({
+      sucesso: true,
+      sincronizadas: resultados.map(({ aba, registros }) => ({ aba, registros }))
+    });
+  } catch (error) {
+    console.error('Falha na sincronização SheetDB via webhook:', error.message);
+    return res.status(502).json({ erro: 'Não foi possível sincronizar a planilha.' });
+  }
 });
 
 // Gerenciador de Usuários (somente para o Usuário Principal)
@@ -1041,8 +1122,7 @@ app.get('/api/iptv-proxy', async (req, res) => {
 async function iniciarServidor() {
   try {
     fs.mkdirSync(DATA_DIR, { recursive: true });
-    await carregarConfiguracaoAdm();
-    await sincronizarUsuariosDaPlanilha();
+    await sincronizarPlanilhaCompleta();
     app.listen(PORT, HOST, () => {
       console.log(`\n==================================================`);
       console.log(` Neguedri Streaming Rodando!`);
@@ -1052,7 +1132,7 @@ async function iniciarServidor() {
       console.log(`==================================================\n`);
     });
   } catch (error) {
-    console.error(`Falha ao carregar configuração ou usuários do SheetDB: ${error.message}`);
+    console.error(`Falha ao sincronizar as guias do SheetDB: ${error.message}`);
     process.exit(1);
   }
 }
