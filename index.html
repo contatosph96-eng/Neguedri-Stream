@@ -1355,7 +1355,7 @@
   }
 
   async function removerProgressoDoContinuar(item, card) {
-    if (!usuarioLogado || !item || item.tipo !== 'vod') return;
+    if (!usuarioLogado || !item || !['vod', 'series'].includes(item.tipo)) return;
 
     const button = card.querySelector('.remove-progress-btn');
     if (button) button.disabled = true;
@@ -1372,14 +1372,20 @@
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || !result.sucesso) {
-        throw new Error(result.erro || 'Não foi possível remover o filme.');
+        throw new Error(result.erro || 'Não foi possível remover o item.');
       }
 
-      const itemId = String(item.id);
+      const itemId = item.tipo === 'series'
+        ? String(item.seriesId || item.id)
+        : String(item.id);
       if (secaoAtual === 'continue') {
-        itensGerais = itensGerais.filter(progresso =>
-          !(String(progresso.id) === itemId && progresso.tipo === 'vod')
-        );
+        itensGerais = itensGerais.filter(progresso => {
+          if (progresso.tipo !== item.tipo) return true;
+          const progressoId = progresso.tipo === 'series'
+            ? String(progresso.seriesId || progresso.id)
+            : String(progresso.id);
+          return progressoId !== itemId;
+        });
       }
 
       card.remove();
@@ -1389,8 +1395,8 @@
       }
     } catch (error) {
       if (button) button.disabled = false;
-      console.error('Não foi possível remover o filme de Continuar Assistindo.', error);
-      alert('Não foi possível remover este filme. Tente novamente.');
+      console.error('Não foi possível remover o item de Continuar Assistindo.', error);
+      alert('Não foi possível remover este item. Tente novamente.');
     }
   }
 
@@ -1445,7 +1451,7 @@
       };
       card.appendChild(image);
 
-      if (secaoAtual === 'continue' && item.tipo === 'vod') {
+      if (secaoAtual === 'continue' && ['vod', 'series'].includes(item.tipo)) {
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
         removeBtn.className = 'remove-progress-btn';
